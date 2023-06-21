@@ -9,6 +9,7 @@ There is also an option to disable putting backpacks inside other backpacks. If 
 Images:
 ![Backpack Inventory (empty)](https://github.com/Just1Developer/MC_Backpacks/assets/78445321/3764b781-f082-41a1-bf73-50219caa31a9)
 ![Crafting Recipe Backpack](https://github.com/Just1Developer/MC_Backpacks/assets/78445321/7fe23cd2-5535-4fc0-88d9-5e70e93b169e)
+Note that backpacks can now be stacked without an issue. This is a warning from the Alpha.
 ![Crafting Recipe Ender-Backpack](https://github.com/Just1Developer/MC_Backpacks/assets/78445321/51b6828d-1931-449c-9674-f25736e45459)
 
 
