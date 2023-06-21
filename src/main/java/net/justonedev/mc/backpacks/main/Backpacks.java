@@ -72,7 +72,7 @@ public class Backpacks implements Listener {
 		try { EnderBackpackMat = Material.getMaterial(getCfgString("Backpacks.Ender_Material"));
 		} catch(ClassCastException e) { System.out.print("Could not convert " + cfg.get("Backpacks.Ender_Material") + " to a material: unknown material"); }
 		
-		try { size = cfg.getInt("Backpacks.Size");
+		try { size = (int) (Math.ceil((double) cfg.getInt("Backpacks.Size") / 9.0) * 9);
 		} catch(Exception e) { System.out.print("There was an unknown error while importing the size of the backpacks. The size has been set to default (36)"); }
 		
 		Iterator<Recipe> it = BackpacksMain.main.getServer().recipeIterator();
