@@ -1,0 +1,7 @@
+name: Backpacks
+version: '${project.version}'
+main: net.justonedev.mc.backpacks.main.BackpacksMain
+api-version: '1.20'
+prefix: JustOneDeveloper's Backpacks
+authors: [ JustOneDeveloper ]
+description: Backpacks for spigot
