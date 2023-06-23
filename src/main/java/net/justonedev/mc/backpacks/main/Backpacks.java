@@ -401,10 +401,6 @@ public class Backpacks implements Listener {
 			cfg.set("invSlot." + i, inv.getContents()[i]);
 		}
 		
-		
-		cfg.set("invStorage", inv.getStorageContents());
-		
-		
 		try {
 			cfg.save(f);
 		} catch (IOException e) {
@@ -421,18 +417,16 @@ public class Backpacks implements Listener {
 		FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
 		
 		
+		Inventory inv = Bukkit.createInventory(null, 36, "§8Backpack - " + UUID);
+		
 		if(!f.exists()) {
 			try {
 				cfg.save(f);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			return Bukkit.createInventory(null, 36, "§8Backpack - " + UUID);
+			return inv;
 		}
-		
-		
-		Inventory inv = Bukkit.createInventory(null, 36, "§8Backpack - " + UUID);
-		
 		
 		for(int i = 0; i < inv.getSize(); i++) {
 			inv.setItem(i, cfg.getItemStack("invSlot." + i));

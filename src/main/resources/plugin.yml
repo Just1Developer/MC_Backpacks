@@ -1,5 +1,5 @@
 name: Backpacks
-version: '${project.version}'
+version: '1.3-RELEASE'
 main: net.justonedev.mc.backpacks.main.BackpacksMain
 api-version: '1.16'
 prefix: JustOneDeveloper's Backpacks
