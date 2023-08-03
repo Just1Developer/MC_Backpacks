@@ -2,10 +2,7 @@ package net.justonedev.mc.backpacks.main;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -13,12 +10,15 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -94,16 +94,13 @@ public class Backpacks implements Listener {
 		
 		ArrayList<String> lore = new ArrayList<>();
 		lore.add("§7Backpack");
-		lore.add("§cBetter not stack");
+		//lore.add("§cBetter not stack");
 		
 		bpm.setLore(lore);
 		bp.setItemMeta(bpm);
 		
 		
-		ShapedRecipe Backpack = new ShapedRecipe(new NamespacedKey(BackpacksMain.main, "backpack"), bp);
-		Backpack.shape("S", "E", "S");
-		Backpack.setIngredient('E', Material.ENDER_PEARL);
-		Backpack.setIngredient('S', Material.SHULKER_SHELL);
+		ShapedRecipe Backpack = recipeOf("Backpack", bp, "backpack", Material.ENDER_PEARL);
 		
 		// Add Ender-Backpack Recipe
 		
@@ -119,15 +116,60 @@ public class Backpacks implements Listener {
 		ebp.setItemMeta(ebpm);
 		
 		
-		ShapedRecipe EnderBackpack = new ShapedRecipe(new NamespacedKey(BackpacksMain.main, "ender_backpack"), ebp);
-		EnderBackpack.shape("S", "C", "S");
-		EnderBackpack.setIngredient('S', Material.SHULKER_SHELL);
-		EnderBackpack.setIngredient('C', Material.ENDER_CHEST);
+		ShapedRecipe EnderBackpack = recipeOf("EnderBackpack", ebp, "ender_backpack", Material.ENDER_CHEST);
 
 		Bukkit.addRecipe(Backpack);
 		logInfo("Added the Backpack Crafting Recipe");
 		Bukkit.addRecipe(EnderBackpack);
 		logInfo("Added the Ender-Backpack Crafting Recipe");
+	}
+	
+	private ShapedRecipe recipeOf(String recipeEntry, ItemStack result, String recipeKey, Material FallBackCenterMaterial)
+	{
+		File f = new File(BackpacksMain.main.getDataFolder(), "recipes.yml");
+		YamlConfiguration cfg = YamlConfiguration.loadConfiguration(f);
+		if(!f.exists()) createRecipesFile(f, cfg);
+		List<String> shape = (List<String>) cfg.getList(recipeEntry + ".shape");
+		ShapedRecipe recipe = new ShapedRecipe(new NamespacedKey(BackpacksMain.main, recipeKey), result);
+		try {
+			assert shape != null;
+			recipe.shape(shape.toArray(new String[0]));
+			Set<Character> entries = new HashSet<>();
+			for(String c2 : shape) {
+				for (String c1 : c2.split("")) {
+					if (c1.length() != 1) continue;
+					char c = c1.charAt(0);
+					if (entries.contains(c)) continue;
+					entries.add(c);
+					recipe.setIngredient(c, Material.valueOf(cfg.getString(recipeEntry + ".materials." + c)));
+				}
+			}
+		} catch (Exception e)
+		{
+			Bukkit.getLogger().severe("Failed to load recipe for " + result.getItemMeta().getDisplayName() + ". Loading default crafting recipe instead. Stack trace:");
+			e.printStackTrace();
+			recipe.shape("S", "E", "S");
+			recipe.setIngredient('E', FallBackCenterMaterial);
+			recipe.setIngredient('S', Material.SHULKER_SHELL);
+		}
+		return recipe;
+	}
+	
+	private void createRecipesFile(File f, YamlConfiguration cfg)
+	{
+		cfg.set("Backpack.shape", Arrays.asList("S", "E", "S"));
+		cfg.set("Backpack.materials.S", Material.SHULKER_SHELL.toString());
+		cfg.set("Backpack.materials.E", Material.ENDER_PEARL.toString());
+		
+		cfg.set("EnderBackpack.shape", Arrays.asList("S", "E", "S"));
+		cfg.set("EnderBackpack.materials.S", Material.SHULKER_SHELL.toString());
+		cfg.set("EnderBackpack.materials.E", Material.ENDER_CHEST.toString());
+		
+		try {
+			cfg.save(f);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	private String getCfgString(String name)
@@ -159,117 +201,145 @@ public class Backpacks implements Listener {
 		}
 	}
 	
-	
+	/** Every block that supersedes interaction with an item
+	 */
+	final List<Material> Interactables = Arrays.asList(Material.CHEST, Material.TRAPPED_CHEST, Material.BREWING_STAND, Material.ANVIL, Material.CHIPPED_ANVIL, Material.DAMAGED_ANVIL, Material.LOOM, Material.SMITHING_TABLE, Material.ENDER_CHEST, Material.STONECUTTER, Material.GRINDSTONE, Material.FURNACE, Material.BLAST_FURNACE, Material.HOPPER,
+			//Material.MINECART, Material.FURNACE_MINECART, Material.FURNACE_MINECART, Material.CHEST_MINECART, Material.COMMAND_BLOCK_MINECART,
+			Material.COMMAND_BLOCK, Material.BEACON, Material.CRAFTING_TABLE, Material.SMOKER, Material.DAYLIGHT_DETECTOR,
+			Material.LEVER, Material.STONE_BUTTON, Material.ARMOR_STAND, Material.ITEM_FRAME, Material.BELL, Material.ENCHANTING_TABLE, Material.CHISELED_BOOKSHELF, Material.LECTERN, Material.CARTOGRAPHY_TABLE, Material.BARREL,
+			Material.WHITE_BED, Material.LIGHT_GRAY_BED, Material.GRAY_BED, Material.BLACK_BED, Material.BROWN_BED, Material.RED_BED, Material.ORANGE_BED, Material.YELLOW_BED, Material.LIME_BED, Material.GREEN_BED, Material.CYAN_BED, Material.LIGHT_BLUE_BED, Material.BLUE_BED, Material.PURPLE_BED, Material.MAGENTA_BED, Material.PINK_BED,
+			Material.DARK_OAK_DOOR, Material.ACACIA_DOOR, Material.BAMBOO_DOOR, Material.BIRCH_DOOR, Material.OAK_DOOR, Material.CHERRY_DOOR, Material.CRIMSON_DOOR, Material.JUNGLE_DOOR, Material.MANGROVE_DOOR, Material.SPRUCE_DOOR, Material.WARPED_DOOR,
+			// These are entities smh
+			//Material.DARK_OAK_BOAT, Material.ACACIA_BOAT, Material.BIRCH_BOAT, Material.OAK_BOAT, Material.CHERRY_BOAT, Material.JUNGLE_BOAT, Material.MANGROVE_BOAT, Material.SPRUCE_BOAT,
+			//Material.DARK_OAK_CHEST_BOAT, Material.ACACIA_CHEST_BOAT, Material.BIRCH_CHEST_BOAT, Material.OAK_CHEST_BOAT, Material.CHERRY_CHEST_BOAT, Material.JUNGLE_CHEST_BOAT, Material.MANGROVE_CHEST_BOAT, Material.SPRUCE_CHEST_BOAT,
+			Material.DARK_OAK_WALL_SIGN, Material.ACACIA_WALL_SIGN, Material.BAMBOO_WALL_SIGN, Material.BIRCH_WALL_SIGN, Material.OAK_WALL_SIGN, Material.CHERRY_WALL_SIGN, Material.CRIMSON_WALL_SIGN, Material.JUNGLE_WALL_SIGN, Material.MANGROVE_WALL_SIGN, Material.SPRUCE_WALL_SIGN, Material.WARPED_WALL_SIGN,
+			Material.DARK_OAK_HANGING_SIGN, Material.ACACIA_HANGING_SIGN, Material.BAMBOO_HANGING_SIGN, Material.BIRCH_HANGING_SIGN, Material.OAK_HANGING_SIGN, Material.CHERRY_HANGING_SIGN, Material.CRIMSON_HANGING_SIGN, Material.JUNGLE_HANGING_SIGN, Material.MANGROVE_HANGING_SIGN, Material.SPRUCE_HANGING_SIGN, Material.WARPED_HANGING_SIGN,
+			Material.DARK_OAK_SIGN, Material.ACACIA_SIGN, Material.BAMBOO_SIGN, Material.BIRCH_SIGN, Material.OAK_SIGN, Material.CHERRY_SIGN, Material.CRIMSON_SIGN, Material.JUNGLE_SIGN, Material.MANGROVE_SIGN, Material.SPRUCE_SIGN, Material.WARPED_SIGN,
+			Material.DARK_OAK_BUTTON, Material.ACACIA_BUTTON, Material.BAMBOO_BUTTON, Material.BIRCH_BUTTON, Material.OAK_BUTTON, Material.CHERRY_BUTTON, Material.CRIMSON_BUTTON, Material.JUNGLE_BUTTON, Material.MANGROVE_BUTTON, Material.SPRUCE_BUTTON, Material.WARPED_BUTTON,
+			Material.DARK_OAK_FENCE_GATE, Material.ACACIA_FENCE_GATE, Material.BAMBOO_FENCE_GATE, Material.BIRCH_FENCE_GATE, Material.OAK_FENCE_GATE, Material.CHERRY_FENCE_GATE, Material.CRIMSON_FENCE_GATE, Material.JUNGLE_FENCE_GATE, Material.MANGROVE_FENCE_GATE, Material.SPRUCE_FENCE_GATE, Material.WARPED_FENCE_GATE,
+			Material.DARK_OAK_TRAPDOOR, Material.ACACIA_TRAPDOOR, Material.BAMBOO_TRAPDOOR, Material.BIRCH_TRAPDOOR, Material.OAK_TRAPDOOR, Material.CHERRY_TRAPDOOR, Material.CRIMSON_TRAPDOOR, Material.JUNGLE_TRAPDOOR, Material.MANGROVE_TRAPDOOR, Material.SPRUCE_TRAPDOOR, Material.WARPED_TRAPDOOR);
 	
 	@EventHandler
 	public void onInteract(PlayerInteractEvent e) {
 		
 		Player p = e.getPlayer();
-		if(e.getItem() == null) return;
+		if (e.getItem() == null) return;
 		ItemStack it = e.getItem();
 		
-		if(!it.hasItemMeta()) return;
+		if (!it.hasItemMeta()) return;
 		assert it.getItemMeta() != null;
-		if(!it.getItemMeta().hasDisplayName()) return;
+		if (!it.getItemMeta().hasDisplayName()) return;
 		
 		ItemMeta m = it.getItemMeta();
-		if(m == null) return;
-		if(e.getAction().equals(Action.LEFT_CLICK_AIR) || e.getAction().equals(Action.LEFT_CLICK_BLOCK)) return;
+		if (m == null) return;
+		if (e.getAction().equals(Action.LEFT_CLICK_AIR) || e.getAction().equals(Action.LEFT_CLICK_BLOCK)) return;
 		
-		if(m.hasLore()) {
-			assert m.getLore() != null;
-			if(m.getLore().get(0) == null) return;
-			if(m.getLore().get(0).equals(bpLore1)) {
-				
-				if(!it.getType().equals(BackpackMat)) return;
-				if(!enableBackpacks) return;
-				
-				int uuid = 0;
-				
-				if(m.hasLore()) {
-					List<String> l = m.getLore();
-					if(l.get(1) != null && !l.get(1).startsWith("§c")) {
-						try {
-							uuid = Integer.parseInt(l.get(1).replaceFirst("§7", ""));
-						} catch(NumberFormatException ex) {
-							ex.printStackTrace();
-						}
+		if (!m.hasLore()) return;
+		if (e.getAction().equals(Action.RIGHT_CLICK_BLOCK) && !e.getPlayer().isSneaking() && Interactables.contains(Objects.requireNonNull(e.getClickedBlock()).getType())) return;
+		
+		assert m.getLore() != null;
+		if(m.getLore().get(0) == null) return;
+		if(m.getLore().get(0).equals(bpLore1)) {
+			
+			if(!it.getType().equals(BackpackMat)) return;
+			if(!enableBackpacks) return;
+			
+			int uuid = 0;
+			
+			if(m.hasLore()) {
+				List<String> l = m.getLore();
+				if(l.size() == 2 && l.get(1) != null && !l.get(1).startsWith("§c")) {
+					try {
+						uuid = Integer.parseInt(l.get(1).replaceFirst("§7", ""));
+					} catch(NumberFormatException ex) {
+						ex.printStackTrace();
 					}
 				}
+			}
+			
+			if(uuid == 0) {
 				
-				if(uuid == 0) {
+				uuid = getRndUUID();
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add(bpLore1);
+				lore.add("§7" + uuid);
+				
+				if(it.getAmount() > 1) {
 					
-					uuid = getRndUUID();
-					ArrayList<String> lore = new ArrayList<>();
-					lore.add(bpLore1);
-					lore.add("§7" + uuid);
-					
-					if(it.getAmount() > 1) {
-						
-						int amount = it.getAmount();
-						ItemStack it2 = it.clone();
-						it2.setAmount(amount-1);
-						it.setAmount(1);
-						
-						m.setLore(lore);
-						it.setItemMeta(m);
-						
-						int i = 0;
-						while(true) {
-							Inventory inv = p.getInventory();
-							if(inv.getItem(i) == null) {
-								p.getInventory().addItem(it2);
-								break;
-							} else i++;
-							if(i == 36) {
-								// Originally: p.getWorld().dropItemNaturally(p.getLocation(), it2); break;
-								// Now, drop the newly generated backpack:
-								e.setCancelled(true);
-								p.getInventory().setItemInMainHand(it);
-								p.dropItem(true);	// Sure why not
-								p.getInventory().setItemInMainHand(it2);
-								// Don't open inv
-								return;
-							}
-						}
-						
-					} else {
-						
-						m.setLore(lore);
-						it.setItemMeta(m);
-						
-					}
-					
-				}
-				
-				e.setCancelled(true);
-				// Doesn't work :(
-				ItemStack itemStack = p.getInventory().getItemInMainHand();
-				p.getInventory().setItemInMainHand(new ItemStack(Material.AIR));	// Update item in main hand, just for the lil animation for interaction
-				p.getInventory().setItemInMainHand(itemStack);
-				p.openInventory(GetFromFile(uuid));
-				p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
-				
-			} else if(m.getLore().get(0).equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
-				
-				if(!enableEnderbackpacks) return;
-				
-				if(m.getLore().size() >= 2) {
-					ArrayList<String> lore = new ArrayList<>();
-					lore.add("§5Ender-Backpack");
+					int amount = it.getAmount();
+					ItemStack it2 = it.clone();
+					it2.setAmount(amount-1);
+					it.setAmount(1);
 					
 					m.setLore(lore);
 					it.setItemMeta(m);
+					
+					int i = 0;
+					while(true) {
+						Inventory inv = p.getInventory();
+						if(inv.getItem(i) == null) {
+							p.getInventory().addItem(it2);
+							break;
+						} else i++;
+						if(i == 36) {
+							// Originally: p.getWorld().dropItemNaturally(p.getLocation(), it2); break;
+							// Now, drop the newly generated backpack:
+							e.setCancelled(true);
+							p.getInventory().setItemInMainHand(it);
+							p.dropItem(true);	// Sure why not
+							p.getInventory().setItemInMainHand(it2);
+							// Don't open inv
+							return;
+						}
+					}
+					
+				} else {
+					
+					m.setLore(lore);
+					it.setItemMeta(m);
+					
 				}
 				
-				e.setCancelled(true);
-				ItemStack itemStack = p.getInventory().getItemInMainHand();
-				p.getInventory().setItemInMainHand(new ItemStack(Material.AIR));	// Update item in main hand, just for the lil animation for interaction
-				p.getInventory().setItemInMainHand(itemStack);
-				p.openInventory(p.getEnderChest());
-				p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
-				
 			}
+			
+			e.setCancelled(true);
+			// Doesn't work :(
+			/*
+			if(e.getPlayer().isSneaking() && (e.getPlayer().getInventory().getChestplate() == null || e.getPlayer().getInventory().getChestplate().getType() == Material.AIR))
+			{
+				// Equip to back
+				ArmorStand stand = (ArmorStand) p.getWorld().spawnEntity(p.getLocation(), EntityType.ARMOR_STAND);
+				e.getPlayer().addPassenger(stand);
+				assert stand.getEquipment() != null;
+				stand.getEquipment().setHelmet(new ItemStack(Material.CHEST));
+				return;
+			}
+			 */
+			ItemStack itemStack = p.getInventory().getItemInMainHand();
+			p.getInventory().setItemInMainHand(new ItemStack(Material.AIR));	// Update item in main hand, just for the lil animation for interaction
+			p.getInventory().setItemInMainHand(itemStack);
+			p.openInventory(GetFromFile(uuid));
+			p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
+			
+		} else if(m.getLore().get(0).equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
+			
+			if(!enableEnderbackpacks) return;
+			
+			if(m.getLore().size() >= 2) {
+				ArrayList<String> lore = new ArrayList<>();
+				lore.add("§5Ender-Backpack");
+				
+				m.setLore(lore);
+				it.setItemMeta(m);
+			}
+			
+			e.setCancelled(true);
+			ItemStack itemStack = p.getInventory().getItemInMainHand();
+			p.getInventory().setItemInMainHand(new ItemStack(Material.AIR));	// Update item in main hand, just for the lil animation for interaction
+			p.getInventory().setItemInMainHand(itemStack);
+			p.openInventory(p.getEnderChest());
+			p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
+			
 		}
 	}
 	
@@ -315,6 +385,10 @@ public class Backpacks implements Listener {
 						(isItemBackpackAndDisallowed(it) || isTheBackpackFromInventory(uuid, it)) && e.isShiftClick())
 				{
 					e.setCancelled(true);
+				}
+				else if(e.getClick() == ClickType.NUMBER_KEY)
+				{
+					if(isItemBackpackAndDisallowed(e.getWhoClicked().getInventory().getItem(e.getHotbarButton()))) e.setCancelled(true);
 				}
 			}
 		}
