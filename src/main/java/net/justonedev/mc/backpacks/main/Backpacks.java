@@ -33,9 +33,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 public class Backpacks implements Listener {
 	
-	public static File f = new File(BackpacksMain.main.getDataFolder(), "config.yml");
-	public static FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
-	
 	public static Material BackpackMat;
 	public static Material EnderBackpackMat;
 	public static int size;
@@ -43,9 +40,13 @@ public class Backpacks implements Listener {
 	public static boolean enableEnderbackpacks = true;
 	public static boolean allowBackpacksInBackpacks = false;
 	
+	static String bpName = "§fBackpack", bpNameEnder = "§5Ender-Backpack";
 	static String bpLore1 = "§7Backpack", bpTitleStart = "§8Backpack - ", bpTitleSepatator = " - ";
 	
 	public Backpacks() {
+		
+		File f = new File(BackpacksMain.main.getDataFolder(), "config.yml");
+		FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
 		
 		BackpackMat = Material.CLOCK;
 		EnderBackpackMat = Material.POLAR_BEAR_SPAWN_EGG;
@@ -59,17 +60,20 @@ public class Backpacks implements Listener {
 			cfg.addDefault("Enable Backpacks", true);
 			cfg.addDefault("Enable Ender-Backpacks", true);
 			cfg.addDefault("Allow Backpacks in Backpacks", false);
-			saveCfg();
+			saveCfg(f, cfg);
 		}
 		
 		enableBackpacks = cfg.getBoolean("Enable Backpacks");
 		enableEnderbackpacks = cfg.getBoolean("Enable Ender-Backpacks");
 		allowBackpacksInBackpacks = cfg.getBoolean("Allow Backpacks in Backpacks");
 		
-		try { BackpackMat = Material.getMaterial(getCfgString("Backpacks.Material"));
+		bpName = getCfgString(f, cfg, "Backpack Displayname", "§fBackpack");
+		bpNameEnder = getCfgString(f, cfg, "Ender-Backpack Displayname", "§5Ender-Backpack");
+		
+		try { BackpackMat = Material.getMaterial(getCfgString(f, cfg, "Backpacks.Material", "CLOCK"));
 		} catch(ClassCastException e) { System.out.print("Could not convert " + cfg.get("Backpacks.Material") + " to a material: unknown material"); }
 		
-		try { EnderBackpackMat = Material.getMaterial(getCfgString("Backpacks.Ender_Material"));
+		try { EnderBackpackMat = Material.getMaterial(getCfgString(f, cfg, "Backpacks.Ender_Material", "POLAR_BEAR_SPAWN_EGG"));
 		} catch(ClassCastException e) { System.out.print("Could not convert " + cfg.get("Backpacks.Ender_Material") + " to a material: unknown material"); }
 		
 		try { size = (int) (Math.ceil((double) cfg.getInt("Backpacks.Size") / 9.0) * 9);
@@ -90,10 +94,10 @@ public class Backpacks implements Listener {
 		ItemStack bp = new ItemStack(BackpackMat, 1);
 		ItemMeta bpm = bp.getItemMeta();
 		assert bpm != null;
-		bpm.setDisplayName("§fBackpack");
+		bpm.setDisplayName(bpName);
 		
 		ArrayList<String> lore = new ArrayList<>();
-		lore.add("§7Backpack");
+		lore.add(bpLore1);
 		//lore.add("§cBetter not stack");
 		
 		bpm.setLore(lore);
@@ -107,7 +111,7 @@ public class Backpacks implements Listener {
 		ItemStack ebp = new ItemStack(EnderBackpackMat, 1);
 		ItemMeta ebpm = ebp.getItemMeta();
 		assert ebpm != null;
-		ebpm.setDisplayName("§5Ender-Backpack");
+		ebpm.setDisplayName(bpNameEnder);
 		
 		lore.clear();
 		lore.add("§5Ender-Backpack");
@@ -172,10 +176,15 @@ public class Backpacks implements Listener {
 		}
 	}
 	
-	private String getCfgString(String name)
+	private String getCfgString(File f, FileConfiguration cfg, String name, String _default)
 	{
 		String s = cfg.getString(name);
-		if(s == null) s = "";
+		if(s == null)
+		{
+			s = _default;
+			cfg.set(name, _default);
+			saveCfg(f, cfg);
+		}
 		return s;
 	}
 	
@@ -530,7 +539,7 @@ public class Backpacks implements Listener {
 	
 	
 	
-	public static void saveCfg() {
+	public static void saveCfg(File f, FileConfiguration cfg) {
 		try {
 			cfg.save(f);
 		} catch (IOException e) {
