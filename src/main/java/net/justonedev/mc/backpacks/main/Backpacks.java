@@ -8,11 +8,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
@@ -39,9 +37,11 @@ public class Backpacks implements Listener {
 	public static boolean enableBackpacks = true;
 	public static boolean enableEnderbackpacks = true;
 	public static boolean allowBackpacksInBackpacks = false;
-	
+
+	private static final int DefaultSize = 36;
+
 	static String bpName = "§fBackpack", bpNameEnder = "§5Ender-Backpack";
-	static String bpLore1 = "§7Backpack", bpTitleStart = "§8Backpack - ", bpTitleSepatator = " - ";
+	static final String bpLore1 = "§7Backpack", bpTitleStart = "§8Backpack - ", bpTitleSepatator = " - ";
 	
 	public Backpacks() {
 		
@@ -56,7 +56,7 @@ public class Backpacks implements Listener {
 			cfg.options().copyDefaults(true);
 			cfg.addDefault("Backpacks.Material", BackpackMat.toString());
 			cfg.addDefault("Backpacks.Ender_Material", EnderBackpackMat.toString());
-			cfg.addDefault("Backpacks.Size", 36);
+			cfg.addDefault("Backpacks.Size", DefaultSize);
 			cfg.addDefault("Enable Backpacks", true);
 			cfg.addDefault("Enable Ender-Backpacks", true);
 			cfg.addDefault("Allow Backpacks in Backpacks", false);
@@ -76,7 +76,7 @@ public class Backpacks implements Listener {
 		try { EnderBackpackMat = Material.getMaterial(getCfgString(f, cfg, "Backpacks.Ender_Material", "POLAR_BEAR_SPAWN_EGG"));
 		} catch(ClassCastException e) { System.out.print("Could not convert " + cfg.get("Backpacks.Ender_Material") + " to a material: unknown material"); }
 		
-		try { size = (int) (Math.ceil((double) cfg.getInt("Backpacks.Size") / 9.0) * 9);
+		try { size = (int) Math.max(Math.ceil((double) cfg.getInt("Backpacks.Size") / 9.0) * 9, 9);	// Size >= 9
 		} catch(Exception e) { System.out.print("There was an unknown error while importing the size of the backpacks. The size has been set to default (36)"); }
 		
 		Iterator<Recipe> it = BackpacksMain.main.getServer().recipeIterator();
@@ -201,7 +201,7 @@ public class Backpacks implements Listener {
 		Inventory inv = e.getInventory();
 		String[] title = e.getView().getTitle().split(" - ");
 		
-		if(inv.getSize() == size && inv.getHolder() == null && title[0].equals(bpTitleStart.replace(bpTitleSepatator, ""))) {
+		if(inv.getHolder() == null && title[0].equals(bpTitleStart.replace(bpTitleSepatator, ""))) {
 			
 			int uuid;
 			uuid = Integer.parseInt(title[1]);
@@ -477,9 +477,8 @@ public class Backpacks implements Listener {
 		File f = new File(BackpacksMain.main.getDataFolder() + "/backpacks/", UUID + ".yml");
 		FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
 		
-		cfg.set("inv.size", inv.getSize());
-		
-		
+		cfg.set("inv.size", inv.getSize());		// Todo perhaps improve this
+
 		for(int i = 0; i < inv.getSize(); i++) {
 			cfg.set("invSlot." + i, inv.getContents()[i]);
 		}
@@ -498,23 +497,42 @@ public class Backpacks implements Listener {
 		
 		File f = new File(BackpacksMain.main.getDataFolder() + "/backpacks/", UUID + ".yml");
 		FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
-		
-		
-		Inventory inv = Bukkit.createInventory(null, 36, "§8Backpack - " + UUID);
-		
+
+		// Get size of inventory
+
 		if(!f.exists()) {
 			try {
 				cfg.save(f);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+
+			Inventory inv = Bukkit.createInventory(null, size, "§8Backpack - " + UUID);
 			return inv;
 		}
-		
+
+		int size = cfg.getInt("inv.size");
+		if (size == 0) size = Backpacks.size;	// If no size is set yet
+
+		ConfigurationSection slotSection = cfg.getConfigurationSection("invSlot");
+
+		if (slotSection == null) return Bukkit.createInventory(null, size, "§8Backpack - " + UUID);	// Slots there
+
+		// Iterate through all keys and find if something is in a slot that would be outside the bounds of the inventory
+		for (String key : slotSection.getKeys(false))
+		{
+			int parse = Integer.parseInt(key);
+			if (parse > size) size = parse;
+		}
+
+		size = (int) Math.max(Math.ceil((double) size / 9.0) * 9, 9);	// Size >= 9
+		Inventory inv = Bukkit.createInventory(null, size, "§8Backpack - " + UUID);
+		// Inventory size is either the preferred size, the set size, or the size it needs to be to fit all the items
+
 		for(int i = 0; i < inv.getSize(); i++) {
 			inv.setItem(i, cfg.getItemStack("invSlot." + i));
 		}
-		
+
 		return inv;
 		
 	}

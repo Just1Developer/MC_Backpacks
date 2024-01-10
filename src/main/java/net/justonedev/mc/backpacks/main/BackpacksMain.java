@@ -11,6 +11,8 @@ public final class BackpacksMain extends JavaPlugin {
 	public void onEnable() {
 		main = this;
 		Bukkit.getPluginManager().registerEvents(new Backpacks(), this);
+		if (this.getDescription().getVersion().endsWith("DEVBUILD"))
+			Bukkit.getLogger().warning("[" + this.getDescription().getPrefix() + "] Please note that this is a developer build and could contain bugs or untested features.");
 	}
 	
 	@Override
