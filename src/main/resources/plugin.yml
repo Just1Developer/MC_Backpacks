@@ -1,7 +1,9 @@
 name: Backpacks
-version: '1.4-RELEASE'
+version: '1.4.2-DevBuild'
 main: net.justonedev.mc.backpacks.main.BackpacksMain
 api-version: '1.16'
 prefix: JustOneDeveloper's Backpacks
 authors: [ JustOneDeveloper ]
 description: Backpacks for spigot
+commands:
+  backpacks:

@@ -4,10 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.ArmorStand;
@@ -41,12 +38,15 @@ public class Backpacks implements Listener {
 	public static boolean allowBackpacksInBackpacks = false;
 	
 	static String bpName = "§fBackpack", bpNameEnder = "§5Ender-Backpack";
-	static String bpLore1 = "§7Backpack", bpTitleStart = "§8Backpack - ", bpTitleSepatator = " - ";
+	static String bpLore1 = "§7Backpack", bpLore2 = "§5Ender-Backpack", bpTitleStart = "§8Backpack - ", bpTitleSepatator = " - ";
 	
 	public Backpacks() {
 		
 		File f = new File(BackpacksMain.main.getDataFolder(), "config.yml");
 		FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
+		
+		BackpacksMain.prefix = ChatColor.translateAlternateColorCodes('&', getCfgString(f, cfg, "Plugin prefix", BackpacksMain.prefix));
+		BackpacksMain.recipeLoadDelayTicks = getCfgInt(f, cfg, "Recipe Load Delay in Ticks", BackpacksMain.recipeLoadDelayTicks);
 		
 		BackpackMat = Material.CLOCK;
 		EnderBackpackMat = Material.POLAR_BEAR_SPAWN_EGG;
@@ -89,42 +89,47 @@ public class Backpacks implements Listener {
 			}
 		}
 		
-		// Add Backpack Recipe
+		// Set the items:
 		
-		ItemStack bp = new ItemStack(BackpackMat, 1);
-		ItemMeta bpm = bp.getItemMeta();
+		backpackItem = new ItemStack(BackpackMat, 1);
+		ItemMeta bpm = backpackItem.getItemMeta();
 		assert bpm != null;
 		bpm.setDisplayName(bpName);
 		
-		ArrayList<String> lore = new ArrayList<>();
-		lore.add(bpLore1);
-		//lore.add("§cBetter not stack");
-		
-		bpm.setLore(lore);
-		bp.setItemMeta(bpm);
+		bpm.setLore(Collections.singletonList(bpLore1));
+		backpackItem.setItemMeta(bpm);
 		
 		
-		ShapedRecipe Backpack = recipeOf("Backpack", bp, "backpack", Material.ENDER_PEARL);
-		
-		// Add Ender-Backpack Recipe
-		
-		ItemStack ebp = new ItemStack(EnderBackpackMat, 1);
-		ItemMeta ebpm = ebp.getItemMeta();
+		enderbackpackItem = new ItemStack(EnderBackpackMat, 1);
+		ItemMeta ebpm = enderbackpackItem.getItemMeta();
 		assert ebpm != null;
 		ebpm.setDisplayName(bpNameEnder);
 		
-		lore.clear();
-		lore.add("§5Ender-Backpack");
+		ebpm.setLore(Collections.singletonList(bpLore2));
+		enderbackpackItem.setItemMeta(ebpm);
 		
-		ebpm.setLore(lore);
-		ebp.setItemMeta(ebpm);
+		// Recipes are loaded 0.5 seconds after
+	}
+	
+	ShapedRecipe Recipe_Backpack, Recipe_Enderbackpack;
+	ItemStack backpackItem, enderbackpackItem;
+	
+	public void reloadRecipes()
+	{
+		if(Recipe_Backpack != null) Bukkit.removeRecipe(Recipe_Backpack.getKey());
+		if(Recipe_Enderbackpack != null) Bukkit.removeRecipe(Recipe_Enderbackpack.getKey());
 		
+		// Add Backpack Recipe
 		
-		ShapedRecipe EnderBackpack = recipeOf("EnderBackpack", ebp, "ender_backpack", Material.ENDER_CHEST);
-
-		Bukkit.addRecipe(Backpack);
+		Recipe_Backpack = recipeOf("Backpack", backpackItem, "backpack", Material.ENDER_PEARL);
+		
+		// Add Ender-Backpack Recipe
+		
+		Recipe_Enderbackpack = recipeOf("EnderBackpack", enderbackpackItem, "ender_backpack", Material.ENDER_CHEST);
+		
+		Bukkit.addRecipe(Recipe_Backpack);
 		logInfo("Added the Backpack Crafting Recipe");
-		Bukkit.addRecipe(EnderBackpack);
+		Bukkit.addRecipe(Recipe_Enderbackpack);
 		logInfo("Added the Ender-Backpack Crafting Recipe");
 	}
 	
@@ -176,7 +181,7 @@ public class Backpacks implements Listener {
 		}
 	}
 	
-	private String getCfgString(File f, FileConfiguration cfg, String name, String _default)
+	public static String getCfgString(File f, FileConfiguration cfg, String name, String _default)
 	{
 		String s = cfg.getString(name);
 		if(s == null)
@@ -186,6 +191,17 @@ public class Backpacks implements Listener {
 			saveCfg(f, cfg);
 		}
 		return s;
+	}
+	
+	public static int getCfgInt(File f, FileConfiguration cfg, String name, int _default)
+	{
+		if(!cfg.contains(name))
+		{
+			cfg.set(name, _default);
+			saveCfg(f, cfg);
+			return _default;
+		}
+		return cfg.getInt(name);
 	}
 	
 	private static void logInfo(String s)
