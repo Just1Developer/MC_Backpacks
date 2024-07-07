@@ -3,6 +3,8 @@ package net.justonedev.mc.backpacks.main;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -95,6 +97,7 @@ public class Backpacks implements Listener {
 		ItemMeta bpm = backpackItem.getItemMeta();
 		assert bpm != null;
 		bpm.setDisplayName(bpName);
+		bpm.setCustomModelData(BackpackColor.baseColorModelData);
 		
 		bpm.setLore(Collections.singletonList(bpLore1));
 		backpackItem.setItemMeta(bpm);
@@ -450,6 +453,11 @@ public class Backpacks implements Listener {
 	
 	public boolean isTheBackpackFromInventory(int BackpackID, ItemStack i) {
 		
+		if (!isBackpack(i)) return false;
+		return BackpackID != 0 && BackpackID == getIDofValidBackpack(i);
+		
+		/*
+		
 		if(i == null) return false;
 		if(!i.hasItemMeta()) return false;
 		ItemMeta m = i.getItemMeta();
@@ -466,6 +474,33 @@ public class Backpacks implements Listener {
 		}
 		
 		return false;
+		
+		 */
+	}
+	
+	private static final int uuidLength = 9;
+	private static final String uuidRegex = String.format("§7\\d{%d,%d}", uuidLength, uuidLength + 1);
+	private static final Pattern pattern = Pattern.compile(uuidRegex);
+	
+	public static boolean isBackpack(ItemStack item) {
+		
+		if(item == null) return false;
+		if(!item.hasItemMeta()) return false;
+		ItemMeta m = item.getItemMeta();
+		assert m != null;
+		if(!m.hasLore()) return false;
+		List<String> l = m.getLore();
+		assert l != null;
+		if(l.isEmpty()) return false;
+		String s = l.get(0);
+		
+		return s.equals(bpLore1) && (l.size() == 1 || l.size() == 2 && pattern.matcher(l.get(1)).matches());
+	}
+	
+	public static int getIDofValidBackpack(ItemStack item) {
+		List<String> l = Objects.requireNonNull(item.getItemMeta()).getLore();
+		assert l != null;
+		return l.size() != 2 ? 0 : Integer.parseInt(l.get(1).substring(2));
 	}
 	
 	// If the current item is a backpack and putting backpacks inside backpacks is forbidden
@@ -538,10 +573,10 @@ public class Backpacks implements Listener {
 	
 	
 	public int getRndUUID() {
-		int id = rndInt(100000000, 999999999);
+		int id = rndInt((int) Math.pow(10, uuidLength - 1), (int) Math.pow(10, uuidLength));
 		while(true) {
 			if(!new File(BackpacksMain.main.getDataFolder() + "/backpacks/", id + ".yml").exists()) break;
-			else id = rndInt(100000000, 999999999);
+			else id = rndInt((int) Math.pow(10, uuidLength - 1), (int) Math.pow(10, uuidLength));
 		}
 		return id;
 	}
@@ -550,7 +585,7 @@ public class Backpacks implements Listener {
 	
 	public int rndInt(int min, int max) {
 		Random r = new Random();
-		return r.nextInt((max-min) + 1) + min;
+		return r.nextInt(max - min) + min;
 	}
 	
 	

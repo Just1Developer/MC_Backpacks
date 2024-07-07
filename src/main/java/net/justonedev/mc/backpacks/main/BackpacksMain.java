@@ -5,9 +5,6 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.server.ServerListPingEvent;
-import org.bukkit.event.server.ServerLoadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -28,6 +25,7 @@ public final class BackpacksMain extends JavaPlugin {
 		main = this;
 		backpacks = new Backpacks();
 		Bukkit.getPluginManager().registerEvents(backpacks, this);
+		Bukkit.getPluginManager().registerEvents(new BackpackColor(), this);
 		this.getCommand("backpacks").setTabCompleter(this);
 		this.getCommand("backpacks").setExecutor(this);
 		
