@@ -2,11 +2,9 @@ package net.justonedev.mc.backpacks.main;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryType;
@@ -17,10 +15,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 public class BackpackColor implements Listener {
@@ -57,10 +53,11 @@ public class BackpackColor implements Listener {
 		for (ItemStack item : items) {
 			if (item == null) continue;
 			if (item.getAmount() > 1) return;
+			
 			if (Backpacks.isBackpack(item)) {
 				if (backpack == null) backpack = item;
 				else return;
-			} else if (item != null && sortedColors.contains(item.getType())) {
+			} else if (sortedColors.contains(item.getType())) {
 				if (color == null) color = item;
 				else return;
 			}
@@ -123,14 +120,6 @@ public class BackpackColor implements Listener {
 					}
 				}, 1);
 			}
-			/*
-			if (item.getType() == Material.WATER_BUCKET) {
-				items[i] = new ItemStack(Material.BUCKET);
-			} else if (sortedColors.contains(item.getType())) {
-				item.setAmount(item.getAmount() - 1);
-				if (item.getAmount() <= 0) items[i] = null;
-			}
-			 */
 		}
 		// If the Player is disconnected here, the event doesn't go through, so they lose their items.
 		// Honestly this is not my problem I guess. If this happens for some reason, tough luck.
@@ -166,60 +155,4 @@ public class BackpackColor implements Listener {
 		if (remainder.isEmpty()) return;
 		player.getWorld().dropItemNaturally(player.getLocation(), item);
 	}
-	
-	
-	//@EventHandler
-	public void onInventoryClick_old(InventoryClickEvent e) {
-		if (e.getClickedInventory() == null) return;
-		InventoryType type = e.getClickedInventory().getType();
-		if (type != InventoryType.CRAFTING && type != InventoryType.WORKBENCH) return;
-		if (e.getSlotType() != InventoryType.SlotType.RESULT) return;
-		
-		ItemStack itemStack = e.getCurrentItem();
-		if (itemStack == null) return;
-		
-		if (!Backpacks.isBackpack(itemStack)) return;
-		ItemMeta meta = itemStack.getItemMeta();
-		assert meta != null;
-		if (!meta.hasCustomModelData()) return;
-		
-		
-		int amount = itemStack.getAmount();
-		
-		ItemStack[] items = e.getInventory().getStorageContents();
-		for (int i = 0; i < items.length; i++) {
-			ItemStack item = items[i];
-			if (item == null) continue;
-			if (item.getType() == Material.WATER_BUCKET) {
-				items[i] = new ItemStack(Material.BUCKET);
-			} else if (sortedColors.contains(item.getType())) {
-				ItemStack color = new ItemStack(item);
-				color.setAmount(item.getAmount() - amount);
-				items[i] = color;
-			}
-		}
-		e.getInventory().setStorageContents(items);
-	}
-	
-	/*
-	@EventHandler
-	public void completeCraftItem(CraftItemEvent e) {
-		Bukkit.broadcastMessage("1");
-		if (!Backpacks.isBackpack(e.getInventory().getResult())) return;
-		Bukkit.broadcastMessage("2");
-		ItemMeta meta = e.getInventory().getResult().getItemMeta();
-		assert meta != null;
-		Bukkit.broadcastMessage("3");
-		if (!meta.hasCustomModelData()) return;
-		Bukkit.broadcastMessage("4");
-		if (meta.getCustomModelData() != baseColorModelData) return;
-		Bukkit.broadcastMessage("5");
-		
-		ItemStack[] items = e.getInventory().getMatrix();
-		for (ItemStack item : items) {
-			Bukkit.broadcastMessage("item: " + item);
-		}
-		Bukkit.broadcastMessage("§dmaming");
-	}*/
-
 }
