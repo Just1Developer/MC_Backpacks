@@ -110,6 +110,7 @@ public class Backpacks implements Listener {
 		ItemMeta ebpm = enderbackpackItem.getItemMeta();
 		assert ebpm != null;
 		ebpm.setDisplayName(bpNameEnder);
+		ebpm.setCustomModelData(BackpackColor.baseColorModelData);
 		
 		ebpm.setLore(Collections.singletonList(bpLore2));
 		enderbackpackItem.setItemMeta(ebpm);
@@ -277,6 +278,12 @@ public class Backpacks implements Listener {
 			
 			int uuid = 0;
 			
+			if (!m.hasCustomModelData()) {
+				// Backwards compatability.
+				m.setCustomModelData(BackpackColor.baseColorModelData);
+				it.setItemMeta(m);
+			}
+			
 			if(m.hasLore()) {
 				List<String> l = m.getLore();
 				if(l.size() == 2 && l.get(1) != null && !l.get(1).startsWith("§c")) {
@@ -353,6 +360,12 @@ public class Backpacks implements Listener {
 			p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
 			
 		} else if(m.getLore().get(0).equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
+			
+			if (!m.hasCustomModelData()) {
+				// Backwards compatability.
+				m.setCustomModelData(BackpackColor.baseColorModelData);
+				it.setItemMeta(m);
+			}
 			
 			if(!enableEnderbackpacks) return;
 			
