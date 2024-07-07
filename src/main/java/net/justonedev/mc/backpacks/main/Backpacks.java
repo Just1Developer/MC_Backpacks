@@ -43,7 +43,7 @@ public class Backpacks implements Listener {
 	private static final int DefaultSize = 36;
 
 	static String bpName = "§fBackpack", bpNameEnder = "§5Ender-Backpack";
-	static String bpLore1 = "§7Backpack", bpLore2 = "§5Ender-Backpack", bpTitleStart = "§8Backpack - ", bpTitleSepatator = " - ";
+	static String bpLore1 = "§7Backpack", bpLore2 = "§5Ender-Backpack", bpTitleStart = "§8Backpack - ", bpTitleSeparator = " - ";
 	
 	public Backpacks() {
 		
@@ -65,12 +65,17 @@ public class Backpacks implements Listener {
 			cfg.addDefault("Enable Backpacks", true);
 			cfg.addDefault("Enable Ender-Backpacks", true);
 			cfg.addDefault("Allow Backpacks in Backpacks", false);
+			cfg.addDefault("Use Backpacks Resourcepack", true);
 			saveCfg(f, cfg);
 		}
+		
+		boolean changed = false;
 		
 		enableBackpacks = cfg.getBoolean("Enable Backpacks");
 		enableEnderbackpacks = cfg.getBoolean("Enable Ender-Backpacks");
 		allowBackpacksInBackpacks = cfg.getBoolean("Allow Backpacks in Backpacks");
+		if (cfg.isSet("Use Backpacks Resourcepack")) BackpacksMain.useResourcePack = cfg.getBoolean("Use Backpacks Resourcepack");
+		else { cfg.set("Use Backpacks Resourcepack", true); changed = true; }	// Value is already true in main
 		
 		bpName = getCfgString(f, cfg, "Backpack Displayname", "§fBackpack");
 		bpNameEnder = getCfgString(f, cfg, "Ender-Backpack Displayname", "§5Ender-Backpack");
@@ -83,6 +88,8 @@ public class Backpacks implements Listener {
 		
 		try { size = (int) Math.max(Math.ceil((double) cfg.getInt("Backpacks.Size") / 9.0) * 9, 9);	// Size >= 9
 		} catch(Exception e) { System.out.print("There was an unknown error while importing the size of the backpacks. The size has been set to default (36)"); }
+		
+		if (changed) saveCfg(f, cfg);
 		
 		Iterator<Recipe> it = BackpacksMain.main.getServer().recipeIterator();
 		Recipe recipe;
@@ -224,7 +231,7 @@ public class Backpacks implements Listener {
 		Inventory inv = e.getInventory();
 		String[] title = e.getView().getTitle().split(" - ");
 		
-		if(inv.getHolder() == null && title[0].equals(bpTitleStart.replace(bpTitleSepatator, ""))) {
+		if(inv.getHolder() == null && title[0].equals(bpTitleStart.replace(bpTitleSeparator, ""))) {
 			
 			int uuid;
 			uuid = Integer.parseInt(title[1]);
@@ -421,7 +428,7 @@ public class Backpacks implements Listener {
 		
 		if(e.getView().getTitle().startsWith(bpTitleStart)) {
 
-			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSepatator)[1]);
+			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSeparator)[1]);
 			
 			if(!(inv instanceof PlayerInventory) || e.isShiftClick()) {
 				// Shift Click Context
@@ -448,7 +455,7 @@ public class Backpacks implements Listener {
 		
 		if(e.getView().getTitle().startsWith(bpTitleStart)) {
 			
-			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSepatator)[1]);
+			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSeparator)[1]);
 
 			if(!(e.getInventory() instanceof PlayerInventory)) {
 				if(isTheBackpackFromInventory(uuid, e.getOldCursor()) || isTheBackpackFromInventory(uuid, e.getCursor()) || isEitherItemBackpackAndDisallowed(e.getOldCursor(), e.getCursor())) {
