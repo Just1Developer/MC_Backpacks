@@ -109,7 +109,6 @@ public class BackpackColor implements Listener {
 			if (item == null) continue;
 			if (item.getType() == Material.WATER_BUCKET) {
 				bucketList.put(e.getWhoClicked().getUniqueId(), i);
-				e.getInventory().setItem(i, null);						// This prevents Item Duplication of the Bucket when the inventory is closed immediately.
 				Bukkit.getScheduler().scheduleSyncDelayedTask(BackpacksMain.main, () -> {
 					int slot = bucketList.getOrDefault(p.getUniqueId(), -500);
 					if (slot >= 0) {
@@ -150,6 +149,13 @@ public class BackpackColor implements Listener {
 		int slot = bucketList.getOrDefault(p.getUniqueId(), -500);
 		if (slot >= 0) {
 			bucketList.remove(p.getUniqueId());
+			// This is the crafting table of: 0: Result, 1 - 9 (or 4): Matrix
+			// See if player is receiving a water bucket
+			ItemStack[] items = e.getInventory().getContents();
+			for (ItemStack item : items) {
+				if (item.getType().equals(Material.WATER_BUCKET))
+					return;	// Cancel. Player is already receiving this water bucket.
+			}
 			addItem(p, new ItemStack(Material.BUCKET, 1));
 		}
 	}
