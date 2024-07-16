@@ -54,7 +54,7 @@ public final class BackpacksMain extends JavaPlugin implements Listener {
 	
 	@EventHandler
 	public void onJoin(PlayerJoinEvent event) {
-		if (useResourcePack) event.getPlayer().addResourcePack(RESOURCE_PACK_UUID, RESOURCE_PACK_URL, RESOURCE_PACK_SHA1, "This server uses a resouce pack for (colored) backpacks. Usage is recommended.", false);
+		if (useResourcePack) event.getPlayer().addResourcePack(RESOURCE_PACK_UUID, RESOURCE_PACK_URL, RESOURCE_PACK_SHA1, "This server uses a resource pack for (colored) backpacks. Usage is recommended.", false);
 	}
 	
 	@Override
