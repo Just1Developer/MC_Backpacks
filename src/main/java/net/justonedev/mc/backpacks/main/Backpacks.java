@@ -71,10 +71,10 @@ public class Backpacks implements Listener {
 		
 		boolean changed = false;
 		
-		enableBackpacks = cfg.getBoolean("Enable Backpacks");
-		enableEnderbackpacks = cfg.getBoolean("Enable Ender-Backpacks");
-		allowBackpacksInBackpacks = cfg.getBoolean("Allow Backpacks in Backpacks");
-		if (cfg.isSet("Use Backpacks Resourcepack")) BackpacksMain.useResourcePack = cfg.getBoolean("Use Backpacks Resourcepack");
+		enableBackpacks = getCfgBool(f, cfg, "Enable Backpacks", true);
+		enableEnderbackpacks = getCfgBool(f, cfg, "Enable Ender-Backpacks", true);
+		allowBackpacksInBackpacks = getCfgBool(f, cfg, "Allow Backpacks in Backpacks", false);
+		if (cfg.isSet("Use Backpacks Resourcepack")) BackpacksMain.useResourcePack = getCfgBool(f, cfg, "Use Backpacks Resourcepack", true);
 		else { cfg.set("Use Backpacks Resourcepack", true); changed = true; }	// Value is already true in main
 		
 		bpName = getCfgString(f, cfg, "Backpack Displayname", "§fBackpack");
@@ -86,7 +86,7 @@ public class Backpacks implements Listener {
 		try { EnderBackpackMat = Material.getMaterial(getCfgString(f, cfg, "Backpacks.Ender_Material", "POLAR_BEAR_SPAWN_EGG"));
 		} catch(ClassCastException e) { System.out.print("Could not convert " + cfg.get("Backpacks.Ender_Material") + " to a material: unknown material"); }
 		
-		try { size = (int) Math.max(Math.ceil((double) cfg.getInt("Backpacks.Size") / 9.0) * 9, 9);	// Size >= 9
+		try { size = (int) Math.max(Math.ceil((double) getCfgInt(f, cfg, "Backpacks.Size", DefaultSize) / 9.0) * 9, 9);	// Size >= 9
 		} catch(Exception e) { System.out.print("There was an unknown error while importing the size of the backpacks. The size has been set to default (36)"); }
 		
 		if (changed) saveCfg(f, cfg);
@@ -96,8 +96,8 @@ public class Backpacks implements Listener {
 		while(it.hasNext()) {
 			recipe = it.next();
 			if (recipe != null) {
-				if(recipe.getResult().getType().equals(BackpackMat) && enableBackpacks) it.remove();
-				if(recipe.getResult().getType().equals(EnderBackpackMat) && enableEnderbackpacks) it.remove();
+				if(recipe.getResult().getType().equals(BackpackMat) && !enableBackpacks) it.remove();
+				if(recipe.getResult().getType().equals(EnderBackpackMat) && !enableEnderbackpacks) it.remove();
 			}
 		}
 		
@@ -167,8 +167,7 @@ public class Backpacks implements Listener {
 					recipe.setIngredient(c, Material.valueOf(cfg.getString(recipeEntry + ".materials." + c)));
 				}
 			}
-		} catch (Exception e)
-		{
+		} catch (Exception e) {
 			Bukkit.getLogger().severe("Failed to load recipe for " + result.getItemMeta().getDisplayName() + ". Loading default crafting recipe instead. Stack trace:");
 			e.printStackTrace();
 			recipe.shape("S", "E", "S");
@@ -195,11 +194,9 @@ public class Backpacks implements Listener {
 		}
 	}
 	
-	public static String getCfgString(File f, FileConfiguration cfg, String name, String _default)
-	{
+	public static String getCfgString(File f, FileConfiguration cfg, String name, String _default) {
 		String s = cfg.getString(name);
-		if(s == null)
-		{
+		if(s == null) {
 			s = _default;
 			cfg.set(name, _default);
 			saveCfg(f, cfg);
@@ -207,19 +204,25 @@ public class Backpacks implements Listener {
 		return s;
 	}
 	
-	public static int getCfgInt(File f, FileConfiguration cfg, String name, int _default)
-	{
-		if(!cfg.contains(name))
-		{
+	public static int getCfgInt(File f, FileConfiguration cfg, String name, int _default) {
+		if(!cfg.contains(name)) {
 			cfg.set(name, _default);
 			saveCfg(f, cfg);
 			return _default;
 		}
 		return cfg.getInt(name);
 	}
+
+	public static boolean getCfgBool(File f, FileConfiguration cfg, String name, boolean _default) {
+		if(!cfg.contains(name)) {
+			cfg.set(name, _default);
+			saveCfg(f, cfg);
+			return _default;
+		}
+		return cfg.getBoolean(name);
+	}
 	
-	private static void logInfo(String s)
-	{
+	private static void logInfo(String s) {
 		BackpacksMain.main.getLogger().info(s);
 	}
 	
@@ -260,28 +263,37 @@ public class Backpacks implements Listener {
 	
 	@EventHandler
 	public void onInteract(PlayerInteractEvent e) {
-		
+		Bukkit.broadcastMessage("1");
 		Player p = e.getPlayer();
 		if (e.getItem() == null) return;
 		ItemStack it = e.getItem();
 		
 		if (!it.hasItemMeta()) return;
+		Bukkit.broadcastMessage("2");
 		assert it.getItemMeta() != null;
 		if (!it.getItemMeta().hasDisplayName()) return;
+		Bukkit.broadcastMessage("3");
 		
 		ItemMeta m = it.getItemMeta();
 		if (m == null) return;
+		Bukkit.broadcastMessage("4");
 		if (e.getAction().equals(Action.LEFT_CLICK_AIR) || e.getAction().equals(Action.LEFT_CLICK_BLOCK)) return;
+		Bukkit.broadcastMessage("5");
 		
 		if (!m.hasLore()) return;
+		Bukkit.broadcastMessage("6");
 		if (e.getAction().equals(Action.RIGHT_CLICK_BLOCK) && !e.getPlayer().isSneaking() && Interactables.contains(Objects.requireNonNull(e.getClickedBlock()).getType())) return;
+		Bukkit.broadcastMessage("7");
 		
 		assert m.getLore() != null;
 		if(m.getLore().get(0) == null) return;
+		Bukkit.broadcastMessage("8 + " + m.getLore().get(0));
 		if(m.getLore().get(0).equals(bpLore1)) {
 			
 			if(!it.getType().equals(BackpackMat)) return;
+			Bukkit.broadcastMessage("9 + " + enableBackpacks);
 			if(!enableBackpacks) return;
+			Bukkit.broadcastMessage("10");
 			
 			int uuid = 0;
 			
@@ -296,14 +308,12 @@ public class Backpacks implements Listener {
 				if(l.size() == 2 && l.get(1) != null && !l.get(1).startsWith("§c")) {
 					try {
 						uuid = Integer.parseInt(l.get(1).replaceFirst("§7", ""));
-					} catch(NumberFormatException ex) {
-						ex.printStackTrace();
-					}
+					} catch(NumberFormatException ignored) { }
 				}
 			}
+			Bukkit.broadcastMessage("uuid: " + uuid + " | " + m.getCustomModelData());
 			
 			if(uuid == 0) {
-				
 				uuid = getRndUUID();
 				ArrayList<String> lore = new ArrayList<>();
 				lore.add(bpLore1);
@@ -365,6 +375,7 @@ public class Backpacks implements Listener {
 			p.getInventory().setItemInMainHand(itemStack);
 			p.openInventory(GetFromFile(uuid));
 			p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
+			Bukkit.broadcastMessage("11");
 			
 		} else if(m.getLore().get(0).equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
 			
