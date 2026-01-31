@@ -2,7 +2,9 @@ package net.justonedev.mc.backpacks.main;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
@@ -25,6 +27,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.Recipe;
@@ -33,6 +36,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 @SuppressWarnings("UnstableApiUsage")
 public class Backpacks implements Listener {
+
+    private static final Map<Class<?>, Method> GET_TITLE_CACHE = new ConcurrentHashMap<>();
 	
 	public static Material BackpackMat;
 	public static Material EnderBackpackMat;
@@ -232,11 +237,13 @@ public class Backpacks implements Listener {
 	
 	@EventHandler
 	public void onInvClose(InventoryCloseEvent e) {
+        Inventory inv = e.getInventory();
+        if (inv.getHolder() != null) return;
+
+		String[] title = getInventoryViewTitle(e.getView()).split(" - ", 2);
+        if (title.length != 2) return;
 		
-		Inventory inv = e.getInventory();
-		String[] title = e.getView().getTitle().split(" - ");
-		
-		if(inv.getHolder() == null && title[0].equals(bpTitleStart.replace(bpTitleSeparator, ""))) {
+		if(title[0].equals(bpTitleStart.replace(bpTitleSeparator, ""))) {
 			
 			int uuid;
 			uuid = Integer.parseInt(title[1]);
@@ -244,6 +251,44 @@ public class Backpacks implements Listener {
 			saveInvToFile(inv, uuid);
 		}
 	}
+
+    private String getInventoryViewTitle(Object inventoryView) {
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            return ((InventoryView) inventoryView).getTitle();
+        } else {
+            return safeGetViewTitle(inventoryView);
+        }
+    }
+
+    /**
+     * Gets InventoryView title in a way that works whether InventoryView is an interface or a class
+     * (avoids invokeinterface/invokevirtual bytecode mismatch by using reflection).
+     *
+     * @author Just1Developer
+     * @author ChatGPT
+     */
+    private static String safeGetViewTitle(Object inventoryView) {
+        try {
+            Method m = GET_TITLE_CACHE.computeIfAbsent(inventoryView.getClass(), cls -> {
+                try {
+                    Method method = cls.getMethod("getTitle");
+                    method.setAccessible(true);
+                    return method;
+                } catch (NoSuchMethodException ex) {
+                    return null;
+                }
+            });
+
+            if (m == null) return "";
+
+            Object result = m.invoke(inventoryView);
+            return (result != null) ? result.toString() : "";
+
+        } catch (Throwable t) {
+            Bukkit.getLogger().warning("Failed to get title from inventoryView, please contact the JustOneDeveloper if this issue is reproducible.");
+            return "";
+        }
+    }
 	
 	/** Every block that supersedes interaction with an item
 	 */
@@ -421,12 +466,13 @@ public class Backpacks implements Listener {
 		ItemStack it = e.getCurrentItem();
 		ItemStack cursor = e.getCursor();
 		Inventory inv = e.getClickedInventory();
-		
+        String title = getInventoryViewTitle(e.getView());
+
 		if(it == null && cursor == null) return;
 		
-		if(e.getView().getTitle().startsWith(bpTitleStart)) {
+		if(title.startsWith(bpTitleStart)) {
 
-			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSeparator)[1]);
+			int uuid = Integer.parseInt(title.split(bpTitleSeparator)[1]);
 			
 			if(!(inv instanceof PlayerInventory) || e.isShiftClick()) {
 				// Shift Click Context
@@ -450,10 +496,11 @@ public class Backpacks implements Listener {
 		
 		if(e.getInventory().getHolder() != null) return;
 		if(!(e.getWhoClicked() instanceof Player)) return;
+        String title = getInventoryViewTitle(e.getView());
 		
-		if(e.getView().getTitle().startsWith(bpTitleStart)) {
+		if(title.startsWith(bpTitleStart)) {
 			
-			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSeparator)[1]);
+			int uuid = Integer.parseInt(title.split(bpTitleSeparator)[1]);
 
 			if(!(e.getInventory() instanceof PlayerInventory)) {
 				if(isTheBackpackFromInventory(uuid, e.getOldCursor()) || isTheBackpackFromInventory(uuid, e.getCursor()) || isEitherItemBackpackAndDisallowed(e.getOldCursor(), e.getCursor())) {
