@@ -108,20 +108,18 @@ public class Backpacks implements Listener {
 		ItemMeta bpm = backpackItem.getItemMeta();
 		assert bpm != null;
 		bpm.setDisplayName(bpName);
-		bpm.setCustomModelData(BackpackCrafting.baseColorModelData);
-		
 		bpm.setLore(Collections.singletonList(bpLore1));
 		backpackItem.setItemMeta(bpm);
+        applyModelData(backpackItem, BackpackColor.DEFAULT);
 		
 		
 		enderbackpackItem = new ItemStack(EnderBackpackMat, 1);
 		ItemMeta ebpm = enderbackpackItem.getItemMeta();
 		assert ebpm != null;
 		ebpm.setDisplayName(bpNameEnder);
-		ebpm.setCustomModelData(BackpackCrafting.baseColorModelData);
-		
 		ebpm.setLore(Collections.singletonList(bpLore2));
 		enderbackpackItem.setItemMeta(ebpm);
+        applyModelData(enderbackpackItem, BackpackColor.ENDER);
 		
 		// Recipes are loaded 0.5 seconds after
 	}
@@ -297,23 +295,13 @@ public class Backpacks implements Listener {
 			if(!it.getType().equals(BackpackMat)) return;
 			Bukkit.broadcastMessage("9 + " + enableBackpacks);
 			if(!enableBackpacks) return;
-			Bukkit.broadcastMessage("10");
+			Bukkit.broadcastMessage("10 - hasModelData: " + hasModelData(it));
 			
 			int uuid = 0;
 
-            try {
-                if (!m.hasCustomModelData()) {
-                    // Backwards compatability.
-                    m.setCustomModelData(BackpackCrafting.baseColorModelData);
-                    it.setItemMeta(m);
-                }
-            } catch (Exception ignored) {
-                // methods could not longer exist in newer versions, which we don't care about
+            if (!hasModelData(it)) {
+                applyModelData(it, BackpackColor.DEFAULT);
             }
-
-            var customModelData = m.getCustomModelDataComponent();
-            customModelData.setStrings(List.of("backpacks:items/backpack"));
-            it.setItemMeta(m);
 			
 			if(m.hasLore()) {
 				List<String> l = m.getLore();
@@ -323,7 +311,7 @@ public class Backpacks implements Listener {
 					} catch(NumberFormatException ignored) { }
 				}
 			}
-			Bukkit.broadcastMessage("uuid: " + uuid + " | " + m.getCustomModelData());
+			Bukkit.broadcastMessage("uuid: " + uuid + " | " + (!m.hasCustomModelData() ? -1 : m.getCustomModelData()));
 			
 			if(uuid == 0) {
 				uuid = getRndUUID();
@@ -389,13 +377,12 @@ public class Backpacks implements Listener {
 			p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
 			Bukkit.broadcastMessage("11");
 			
-		} else if(m.getLore().get(0).equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
-			
-			if (!m.hasCustomModelData()) {
-				// Backwards compatability.
-				m.setCustomModelData(BackpackCrafting.baseColorModelData);
-				it.setItemMeta(m);
-			}
+		} else if(m.getLore().getFirst().equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
+
+            if (!hasModelData(it)) {
+                // Backwards compatability.
+                applyModelData(it, BackpackColor.ENDER);
+            }
 			
 			if(!enableEnderbackpacks) return;
 			
@@ -634,20 +621,79 @@ public class Backpacks implements Listener {
 		
 	}
 
-    private void applyModelData(ItemStack itemStack) {
-
+    public static void applyModelData(ItemStack itemStack, BackpackColor color) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            meta.setItemModel(new NamespacedKey(BackpacksMain.TEXTURE_PACK_NAMESPACE, color.getModelName()));
+        } else {
+            meta.setCustomModelData(color.getLegacyModelDataOffset() + BackpackCrafting.baseColorModelData);
+        }
+        itemStack.setItemMeta(meta);
     }
 
-    private boolean hasModelData(ItemStack itemStack) {
-        return true;
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public static boolean hasModelData(ItemStack itemStack) {
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            ItemMeta meta = itemStack.getItemMeta();
+            if (meta == null) return false;
+            NamespacedKey modelKey = meta.getItemModel();
+            if (modelKey == null) return false;
+            return modelKey.getNamespace().equals(BackpacksMain.TEXTURE_PACK_NAMESPACE);
+        }
+        return hasLegacyModelData(itemStack);
     }
 
-    private boolean hasLegacyModelData(ItemStack itemStack) {
+    private static boolean hasLegacyModelData(ItemStack itemStack) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return false;
         try {
+            if (!meta.hasCustomModelData()) return false;
             int data = meta.getCustomModelData();
-            if (BackpackCrafting.isInBackpackCustomModelDataLegacyRange(data)) return true;
+            return BackpackCrafting.isInBackpackCustomModelDataLegacyRange(data);
+        } catch (Exception e) {
+            // in case the method is not on the server side
+            return false;
+        }
+    }
+
+    public static BackpackColor getColorOfBackpack(ItemStack itemStack) {
+        if (!hasModelData(itemStack)) return null;
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return null;
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            NamespacedKey modelKey = meta.getItemModel();
+            if (modelKey == null) return null;
+            Optional<BackpackColor> color = BackpackColor.getByModelName(modelKey.getKey());
+            return color.orElse(null);
+        }
+        if (!meta.hasCustomModelData()) return BackpackColor.DEFAULT;
+        return BackpackColor.fromCustomModelDataInteger(meta.getCustomModelData());
+    }
+
+    @SuppressWarnings("OptionalIsPresent")
+    public static boolean isColoredBackpack(ItemStack itemStack) {
+        if (!hasModelData(itemStack)) return false;
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return false;
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            NamespacedKey modelKey = meta.getItemModel();
+            if (modelKey == null) return false;
+            Optional<BackpackColor> color = BackpackColor.getByModelName(modelKey.getKey());
+            if (color.isEmpty()) return false;
+            return modelKey.getNamespace().equals(BackpacksMain.TEXTURE_PACK_NAMESPACE)
+                    && color.get().isColor();
+        }
+        return isColoredBackpackLegacy(itemStack);
+    }
+
+    private static boolean isColoredBackpackLegacy(ItemStack itemStack) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return false;
+        try {
+            if (!meta.hasCustomModelData()) return false;
+            int data = meta.getCustomModelData();
+            return BackpackCrafting.isInColoredBackpackCustomModelDataLegacyRange(data);
         } catch (Exception e) {
             // in case the method is not on the server side
             return false;

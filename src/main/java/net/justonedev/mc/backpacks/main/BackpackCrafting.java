@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 public class BackpackCrafting implements Listener {
@@ -54,31 +55,36 @@ public class BackpackCrafting implements Listener {
 		for (ItemStack item : items) {
 			if (item == null) continue;
 			if (item.getAmount() > 1) return;
-			
+
+            Optional<BackpackColor> mappedColor = BackpackColor.getByCraftingMaterial(item.getType());
+
 			if (Backpacks.isBackpack(item)) {
 				if (backpack == null) backpack = item;
 				else return;
-			} else if (sortedColors.contains(item.getType())) {
+			} else if (mappedColor.isPresent() && mappedColor.get().isCraftableByColoring()) {
 				if (color == null) color = item;
 				else return;
-			}
+			} else if (item.getType() != Material.AIR) return;
 		}
 		if (backpack == null || color == null) return;
 		
 		// Cannot craft when color isn't color
-		if (color.hasItemMeta())
-			if (Objects.requireNonNull(color.getItemMeta()).hasCustomModelData())
-				if (color.getItemMeta().getCustomModelData() != 0) return;
+		if (color.hasItemMeta()) {
+            if (ItemUtil.hasCustomModelData(color)) return;
+        }
 		
 		ItemStack newBackpack = new ItemStack(backpack);
 		ItemMeta meta = newBackpack.getItemMeta();
-		assert meta != null;
+        if (meta == null) return;
+
+        Optional<BackpackColor> colorOptional = BackpackColor.getByCraftingMaterial(color.getType());
+        if (colorOptional.isEmpty()) return;
+        BackpackColor newColor = colorOptional.get();
+        BackpackColor currentBackpackColor = Backpacks.getColorOfBackpack(backpack);
 		
-		if (meta.getCustomModelData() == baseColorModelData + sortedColors.indexOf(color.getType())) return;	// Already this color
-		
-		meta.setCustomModelData(baseColorModelData + sortedColors.indexOf(color.getType()));
-		newBackpack.setItemMeta(meta);
-		
+		if (currentBackpackColor == newColor) return;	// Already this color
+
+        Backpacks.applyModelData(newBackpack, newColor);
 		e.getInventory().setResult(newBackpack);
 	}
 	
@@ -99,9 +105,7 @@ public class BackpackCrafting implements Listener {
 		if (meta == null) return;
 		
 		// If it's a colored backpack, return.
-		if (meta.hasCustomModelData()
-				&& meta.getCustomModelData() > baseColorModelData
-				&& meta.getCustomModelData() < baseColorModelData + sortedColors.size()) return;
+		if (Backpacks.isColoredBackpack(itemStack)) return;
 		
 		Inventory inventory = e.getClickedInventory();
 		ItemStack[] items = inventory.getStorageContents();
@@ -162,5 +166,9 @@ public class BackpackCrafting implements Listener {
 
     public static boolean isInBackpackCustomModelDataLegacyRange(int customModelData) {
         return customModelData >= baseColorModelData && customModelData < baseColorModelData + sortedColors.size();
+    }
+
+    public static boolean isInColoredBackpackCustomModelDataLegacyRange(int customModelData) {
+        return customModelData > baseColorModelData && customModelData < baseColorModelData + sortedColors.size();
     }
 }
