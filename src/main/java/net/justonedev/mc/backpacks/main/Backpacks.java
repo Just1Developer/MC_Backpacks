@@ -265,37 +265,27 @@ public class Backpacks implements Listener {
 
 	@EventHandler
 	public void onInteract(PlayerInteractEvent e) {
-		Bukkit.broadcastMessage("1");
 		Player p = e.getPlayer();
 		if (e.getItem() == null) return;
 		ItemStack it = e.getItem();
 		
 		if (!it.hasItemMeta()) return;
-		Bukkit.broadcastMessage("2");
 		assert it.getItemMeta() != null;
 		if (!it.getItemMeta().hasDisplayName()) return;
-		Bukkit.broadcastMessage("3");
 		
 		ItemMeta m = it.getItemMeta();
 		if (m == null) return;
-		Bukkit.broadcastMessage("4");
 		if (e.getAction().equals(Action.LEFT_CLICK_AIR) || e.getAction().equals(Action.LEFT_CLICK_BLOCK)) return;
-		Bukkit.broadcastMessage("5");
 		
 		if (!m.hasLore()) return;
-		Bukkit.broadcastMessage("6");
 		if (e.getAction().equals(Action.RIGHT_CLICK_BLOCK) && !e.getPlayer().isSneaking() && Interactables.contains(Objects.requireNonNull(e.getClickedBlock()).getType())) return;
-		Bukkit.broadcastMessage("7");
 		
 		assert m.getLore() != null;
 		if(m.getLore().getFirst() == null) return;
-		Bukkit.broadcastMessage("8 + " + m.getLore().getFirst());
 		if(m.getLore().getFirst().equals(bpLore1)) {
 			
 			if(!it.getType().equals(BackpackMat)) return;
-			Bukkit.broadcastMessage("9 + " + enableBackpacks);
 			if(!enableBackpacks) return;
-			Bukkit.broadcastMessage("10 - hasModelData: " + hasModelData(it));
 			
 			int uuid = 0;
 
@@ -311,7 +301,6 @@ public class Backpacks implements Listener {
 					} catch(NumberFormatException ignored) { }
 				}
 			}
-			Bukkit.broadcastMessage("uuid: " + uuid + " | " + (!m.hasCustomModelData() ? -1 : m.getCustomModelData()));
 			
 			if(uuid == 0) {
 				uuid = getRndUUID();
@@ -375,7 +364,6 @@ public class Backpacks implements Listener {
 			p.getInventory().setItemInMainHand(itemStack);
 			p.openInventory(GetFromFile(uuid));
 			p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
-			Bukkit.broadcastMessage("11");
 			
 		} else if(m.getLore().getFirst().equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
 
@@ -485,30 +473,8 @@ public class Backpacks implements Listener {
 	
 	
 	public boolean isTheBackpackFromInventory(int BackpackID, ItemStack i) {
-		
 		if (!isBackpack(i)) return false;
 		return BackpackID != 0 && BackpackID == getIDofValidBackpack(i);
-		
-		/*
-		
-		if(i == null) return false;
-		if(!i.hasItemMeta()) return false;
-		ItemMeta m = i.getItemMeta();
-		assert m != null;
-		if(!m.hasLore()) return false;
-		List<String> l = m.getLore();
-		assert l != null;
-		if(l.isEmpty()) return false;
-		String s = l.get(0);
-		
-		if(s.equals(bpLore1) && l.size() == 2) {
-			String id = l.get(1).replaceFirst("§7", "");
-			return id.equals(BackpackID + "");
-		}
-		
-		return false;
-		
-		 */
 	}
 	
 	private static final int uuidLength = 9;
@@ -574,9 +540,7 @@ public class Backpacks implements Listener {
 		}
 		
 	}
-	
-	
-	
+
 	public Inventory GetFromFile(int UUID) {
 		
 		File f = new File(BackpacksMain.main.getDataFolder() + "/backpacks/", UUID + ".yml");
@@ -699,9 +663,7 @@ public class Backpacks implements Listener {
             return false;
         }
     }
-	
-	
-	
+
 	public int getRndUUID() {
 		int id = rndInt((int) Math.pow(10, uuidLength - 1), (int) Math.pow(10, uuidLength));
 		while(true) {
@@ -710,16 +672,12 @@ public class Backpacks implements Listener {
 		}
 		return id;
 	}
-	
-	
-	
+
 	public int rndInt(int min, int max) {
 		Random r = new Random();
 		return r.nextInt(max - min) + min;
 	}
-	
-	
-	
+
 	public static void saveCfg(File f, FileConfiguration cfg) {
 		try {
 			cfg.save(f);

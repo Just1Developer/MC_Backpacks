@@ -83,22 +83,16 @@ public final class BackpacksMain extends JavaPlugin implements Listener {
 	}
 
     private boolean isNewModelVersion() {
-        System.out.println("1 >>>>>>>>>>>>>>>>" + Bukkit.getVersion());
-        System.out.println("2 >>>>>>>>>>>>>>>>" + Bukkit.getServer().getBukkitVersion());
-        System.out.println("3 >>>>>>>>>>>>>>>>" + Bukkit.getServer().getVersion());
-
         String versionString = Bukkit.getVersion();
         Matcher matcher = Pattern.compile("^(\\d+(?:\\.\\d+)+).*").matcher(versionString);
         if (!matcher.matches()) return true;
         String parsedVersion = matcher.group(1);
-        System.out.println(">>>>>>>>>>>>>>>>>>> Detected Minecraft version: " + parsedVersion);
 
         List<Integer> version = Arrays.stream(parsedVersion
                 .split("\\."))
                 .map(Integer::parseInt)
                 .toList();
         for (int i = 0; i < Math.min(version.size(), LEGACY_MODELS_VERSION_CUTOFF.size()); i++) {
-            System.out.println("[" + i + "] Comparing " + LEGACY_MODELS_VERSION_CUTOFF.get(i)+" and "+version.get(i) + " | new version: "+(LEGACY_MODELS_VERSION_CUTOFF.get(i) < version.get(i))+"inconclusive: "+(LEGACY_MODELS_VERSION_CUTOFF.get(i) > version.get(i)&&LEGACY_MODELS_VERSION_CUTOFF.get(i) < version.get(i)));
             if (LEGACY_MODELS_VERSION_CUTOFF.get(i) < version.get(i)) {
                 return true;
             } else if (LEGACY_MODELS_VERSION_CUTOFF.get(i) > version.get(i)) {
