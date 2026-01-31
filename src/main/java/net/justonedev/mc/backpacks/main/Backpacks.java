@@ -108,7 +108,7 @@ public class Backpacks implements Listener {
 		ItemMeta bpm = backpackItem.getItemMeta();
 		assert bpm != null;
 		bpm.setDisplayName(bpName);
-		bpm.setCustomModelData(BackpackColor.baseColorModelData);
+		bpm.setCustomModelData(BackpackCrafting.baseColorModelData);
 		
 		bpm.setLore(Collections.singletonList(bpLore1));
 		backpackItem.setItemMeta(bpm);
@@ -118,7 +118,7 @@ public class Backpacks implements Listener {
 		ItemMeta ebpm = enderbackpackItem.getItemMeta();
 		assert ebpm != null;
 		ebpm.setDisplayName(bpNameEnder);
-		ebpm.setCustomModelData(BackpackColor.baseColorModelData);
+		ebpm.setCustomModelData(BackpackCrafting.baseColorModelData);
 		
 		ebpm.setLore(Collections.singletonList(bpLore2));
 		enderbackpackItem.setItemMeta(ebpm);
@@ -153,10 +153,13 @@ public class Backpacks implements Listener {
 		File f = new File(BackpacksMain.main.getDataFolder(), "recipes.yml");
 		YamlConfiguration cfg = YamlConfiguration.loadConfiguration(f);
 		if(!f.exists()) createRecipesFile(f, cfg);
-		List<String> shape = (List<String>) cfg.getList(recipeEntry + ".shape");
-		ShapedRecipe recipe = new ShapedRecipe(new NamespacedKey(BackpacksMain.main, recipeKey), result);
-		try {
-			assert shape != null;
+        var shapeList = cfg.getList(recipeEntry + ".shape");
+        ShapedRecipe recipe = new ShapedRecipe(new NamespacedKey(BackpacksMain.main, recipeKey), result);
+        try {
+            if (shapeList == null) {
+                throw new IllegalStateException("Recipe shape was null.");
+            }
+            List<String> shape = shapeList.stream().map(Object::toString).toList();
 			recipe.shape(shape.toArray(new String[0]));
 			Set<Character> entries = new HashSet<>();
 			for(String c2 : shape) {
@@ -287,9 +290,9 @@ public class Backpacks implements Listener {
 		Bukkit.broadcastMessage("7");
 		
 		assert m.getLore() != null;
-		if(m.getLore().get(0) == null) return;
-		Bukkit.broadcastMessage("8 + " + m.getLore().get(0));
-		if(m.getLore().get(0).equals(bpLore1)) {
+		if(m.getLore().getFirst() == null) return;
+		Bukkit.broadcastMessage("8 + " + m.getLore().getFirst());
+		if(m.getLore().getFirst().equals(bpLore1)) {
 			
 			if(!it.getType().equals(BackpackMat)) return;
 			Bukkit.broadcastMessage("9 + " + enableBackpacks);
@@ -297,12 +300,16 @@ public class Backpacks implements Listener {
 			Bukkit.broadcastMessage("10");
 			
 			int uuid = 0;
-			
-			if (!m.hasCustomModelData()) {
-				// Backwards compatability.
-				m.setCustomModelData(BackpackColor.baseColorModelData);
-                it.setItemMeta(m);
-			}
+
+            try {
+                if (!m.hasCustomModelData()) {
+                    // Backwards compatability.
+                    m.setCustomModelData(BackpackCrafting.baseColorModelData);
+                    it.setItemMeta(m);
+                }
+            } catch (Exception ignored) {
+                // methods could not longer exist in newer versions, which we don't care about
+            }
 
             var customModelData = m.getCustomModelDataComponent();
             customModelData.setStrings(List.of("backpacks:items/backpack"));
@@ -386,7 +393,7 @@ public class Backpacks implements Listener {
 			
 			if (!m.hasCustomModelData()) {
 				// Backwards compatability.
-				m.setCustomModelData(BackpackColor.baseColorModelData);
+				m.setCustomModelData(BackpackCrafting.baseColorModelData);
 				it.setItemMeta(m);
 			}
 			
@@ -626,6 +633,26 @@ public class Backpacks implements Listener {
 		return inv;
 		
 	}
+
+    private void applyModelData(ItemStack itemStack) {
+
+    }
+
+    private boolean hasModelData(ItemStack itemStack) {
+        return true;
+    }
+
+    private boolean hasLegacyModelData(ItemStack itemStack) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return false;
+        try {
+            int data = meta.getCustomModelData();
+            if (BackpackCrafting.isInBackpackCustomModelDataLegacyRange(data)) return true;
+        } catch (Exception e) {
+            // in case the method is not on the server side
+            return false;
+        }
+    }
 	
 	
 	

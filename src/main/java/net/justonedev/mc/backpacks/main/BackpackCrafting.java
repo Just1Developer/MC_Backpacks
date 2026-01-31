@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-public class BackpackColor implements Listener {
+public class BackpackCrafting implements Listener {
 
 	static final int baseColorModelData = 5000;
 	private static final List<Material> sortedColors = Arrays.asList(
@@ -85,10 +85,9 @@ public class BackpackColor implements Listener {
 	
 	@EventHandler
 	public void onInventoryClick(InventoryClickEvent e) {
-		if (!(e.getWhoClicked() instanceof Player)) return;
-		Player p = (Player) e.getWhoClicked();
-		
-		if (e.getClickedInventory() == null) return;
+		if (!(e.getWhoClicked() instanceof Player p)) return;
+
+        if (e.getClickedInventory() == null) return;
 		InventoryType type = e.getClickedInventory().getType();
 		if (type != InventoryType.CRAFTING && type != InventoryType.WORKBENCH) return;
 		if (e.getSlotType() != InventoryType.SlotType.RESULT) return;
@@ -136,12 +135,11 @@ public class BackpackColor implements Listener {
 	
 	@EventHandler
 	public void onClose(InventoryCloseEvent e) {
-		if (!(e.getPlayer() instanceof Player)) return;
+		if (!(e.getPlayer() instanceof Player p)) return;
 		
 		if (e.getInventory().getType() != InventoryType.CRAFTING && e.getInventory().getType() != InventoryType.WORKBENCH) return;
-		
-		Player p = (Player) e.getPlayer();
-		int slot = bucketList.getOrDefault(p.getUniqueId(), -500);
+
+        int slot = bucketList.getOrDefault(p.getUniqueId(), -500);
 		if (slot >= 0) {
 			bucketList.remove(p.getUniqueId());
 			// This is the crafting table of: 0: Result, 1 - 9 (or 4): Matrix
@@ -161,4 +159,8 @@ public class BackpackColor implements Listener {
 		if (remainder.isEmpty()) return;
 		player.getWorld().dropItemNaturally(player.getLocation(), item);
 	}
+
+    public static boolean isInBackpackCustomModelDataLegacyRange(int customModelData) {
+        return customModelData >= baseColorModelData && customModelData < baseColorModelData + sortedColors.size();
+    }
 }

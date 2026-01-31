@@ -28,6 +28,9 @@ public final class BackpacksMain extends JavaPlugin implements Listener {
 	public static String PLUGIN_PREFIX = "&7[&6Backpacks&7] &e";
 	public static int RECIPE_LOAD_DELAY_TICKS = 10;
     public static final String TEXTURE_PACK_NAMESPACE = "backpacks";
+    private static final List<Integer> NEW_MODELS_VERSION_CUTOFF = List.of(1, 21, 4);
+
+    public static boolean USE_NEW_TEXTURE_PACK_SYSTEM;
 
     private static boolean isDevelopmentBuild = false;
 	
@@ -41,6 +44,7 @@ public final class BackpacksMain extends JavaPlugin implements Listener {
 	@Override
 	public void onEnable() {
 		main = this;
+        USE_NEW_TEXTURE_PACK_SYSTEM = isNewModelVersion();
 		if (this.getDescription().getVersion().toLowerCase().contains("dev")) {
             isDevelopmentBuild = true;
             Bukkit.getLogger().warning("[" + this.getDescription().getPrefix() + "] Please note that this is a developer build and could contain bugs or untested features.");
@@ -48,12 +52,29 @@ public final class BackpacksMain extends JavaPlugin implements Listener {
 		backpacks = new Backpacks();
 		Bukkit.getPluginManager().registerEvents(this, this);
 		Bukkit.getPluginManager().registerEvents(backpacks, this);
-		Bukkit.getPluginManager().registerEvents(new BackpackColor(), this);
-		this.getCommand("backpacks").setTabCompleter(this);
-		this.getCommand("backpacks").setExecutor(this);
+		Bukkit.getPluginManager().registerEvents(new BackpackCrafting(), this);
+
+        var command = this.getCommand("backpacks");
+		if (command != null) {
+            command.setTabCompleter(this);
+            command.setExecutor(this);
+        }
 		
 		Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> backpacks.reloadRecipes(), 10);
 	}
+
+    private boolean isNewModelVersion() {
+        List<Integer> version = Arrays.stream(Bukkit.getVersion()
+                .split("\\."))
+                .map(Integer::parseInt)
+                .toList();
+        for (int i = 0; i < Math.min(version.size(), NEW_MODELS_VERSION_CUTOFF.size()); i++) {
+            if (NEW_MODELS_VERSION_CUTOFF.get(i) <= version.get(i)) {
+                return true;
+            }
+        }
+        return false;
+    }
 	
 	@Override
 	public void onDisable() {
