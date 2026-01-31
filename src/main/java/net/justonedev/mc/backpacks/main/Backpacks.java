@@ -31,6 +31,7 @@ import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 
+@SuppressWarnings("UnstableApiUsage")
 public class Backpacks implements Listener {
 	
 	public static Material BackpackMat;
@@ -50,8 +51,8 @@ public class Backpacks implements Listener {
 		File f = new File(BackpacksMain.main.getDataFolder(), "config.yml");
 		FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
 		
-		BackpacksMain.prefix = ChatColor.translateAlternateColorCodes('&', getCfgString(f, cfg, "Plugin prefix", BackpacksMain.prefix));
-		BackpacksMain.recipeLoadDelayTicks = getCfgInt(f, cfg, "Recipe Load Delay in Ticks", BackpacksMain.recipeLoadDelayTicks);
+		BackpacksMain.PLUGIN_PREFIX = ChatColor.translateAlternateColorCodes('&', getCfgString(f, cfg, "Plugin prefix", BackpacksMain.PLUGIN_PREFIX));
+		BackpacksMain.RECIPE_LOAD_DELAY_TICKS = getCfgInt(f, cfg, "Recipe Load Delay in Ticks", BackpacksMain.RECIPE_LOAD_DELAY_TICKS);
 		
 		BackpackMat = Material.CLOCK;
 		EnderBackpackMat = Material.POLAR_BEAR_SPAWN_EGG;
@@ -260,7 +261,7 @@ public class Backpacks implements Listener {
 			Material.DARK_OAK_BUTTON, Material.ACACIA_BUTTON, Material.BAMBOO_BUTTON, Material.BIRCH_BUTTON, Material.OAK_BUTTON, Material.CHERRY_BUTTON, Material.CRIMSON_BUTTON, Material.JUNGLE_BUTTON, Material.MANGROVE_BUTTON, Material.SPRUCE_BUTTON, Material.WARPED_BUTTON,
 			Material.DARK_OAK_FENCE_GATE, Material.ACACIA_FENCE_GATE, Material.BAMBOO_FENCE_GATE, Material.BIRCH_FENCE_GATE, Material.OAK_FENCE_GATE, Material.CHERRY_FENCE_GATE, Material.CRIMSON_FENCE_GATE, Material.JUNGLE_FENCE_GATE, Material.MANGROVE_FENCE_GATE, Material.SPRUCE_FENCE_GATE, Material.WARPED_FENCE_GATE,
 			Material.DARK_OAK_TRAPDOOR, Material.ACACIA_TRAPDOOR, Material.BAMBOO_TRAPDOOR, Material.BIRCH_TRAPDOOR, Material.OAK_TRAPDOOR, Material.CHERRY_TRAPDOOR, Material.CRIMSON_TRAPDOOR, Material.JUNGLE_TRAPDOOR, Material.MANGROVE_TRAPDOOR, Material.SPRUCE_TRAPDOOR, Material.WARPED_TRAPDOOR);
-	
+
 	@EventHandler
 	public void onInteract(PlayerInteractEvent e) {
 		Bukkit.broadcastMessage("1");
@@ -300,8 +301,12 @@ public class Backpacks implements Listener {
 			if (!m.hasCustomModelData()) {
 				// Backwards compatability.
 				m.setCustomModelData(BackpackColor.baseColorModelData);
-				it.setItemMeta(m);
+                it.setItemMeta(m);
 			}
+
+            var customModelData = m.getCustomModelDataComponent();
+            customModelData.setStrings(List.of("backpacks:items/backpack"));
+            it.setItemMeta(m);
 			
 			if(m.hasLore()) {
 				List<String> l = m.getLore();
