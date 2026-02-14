@@ -2,7 +2,9 @@ package net.justonedev.mc.backpacks.main;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 import org.bukkit.Bukkit;
@@ -25,13 +27,17 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 
+@SuppressWarnings("UnstableApiUsage")
 public class Backpacks implements Listener {
+
+    private static final Map<Class<?>, Method> GET_TITLE_CACHE = new ConcurrentHashMap<>();
 	
 	public static Material BackpackMat;
 	public static Material EnderBackpackMat;
@@ -50,8 +56,8 @@ public class Backpacks implements Listener {
 		File f = new File(BackpacksMain.main.getDataFolder(), "config.yml");
 		FileConfiguration cfg = YamlConfiguration.loadConfiguration(f);
 		
-		BackpacksMain.prefix = ChatColor.translateAlternateColorCodes('&', getCfgString(f, cfg, "Plugin prefix", BackpacksMain.prefix));
-		BackpacksMain.recipeLoadDelayTicks = getCfgInt(f, cfg, "Recipe Load Delay in Ticks", BackpacksMain.recipeLoadDelayTicks);
+		BackpacksMain.PLUGIN_PREFIX = ChatColor.translateAlternateColorCodes('&', getCfgString(f, cfg, "Plugin prefix", BackpacksMain.PLUGIN_PREFIX));
+		BackpacksMain.RECIPE_LOAD_DELAY_TICKS = getCfgInt(f, cfg, "Recipe Load Delay in Ticks", BackpacksMain.RECIPE_LOAD_DELAY_TICKS);
 		
 		BackpackMat = Material.CLOCK;
 		EnderBackpackMat = Material.POLAR_BEAR_SPAWN_EGG;
@@ -107,20 +113,18 @@ public class Backpacks implements Listener {
 		ItemMeta bpm = backpackItem.getItemMeta();
 		assert bpm != null;
 		bpm.setDisplayName(bpName);
-		bpm.setCustomModelData(BackpackColor.baseColorModelData);
-		
 		bpm.setLore(Collections.singletonList(bpLore1));
 		backpackItem.setItemMeta(bpm);
+        applyModelData(backpackItem, BackpackColor.DEFAULT);
 		
 		
 		enderbackpackItem = new ItemStack(EnderBackpackMat, 1);
 		ItemMeta ebpm = enderbackpackItem.getItemMeta();
 		assert ebpm != null;
 		ebpm.setDisplayName(bpNameEnder);
-		ebpm.setCustomModelData(BackpackColor.baseColorModelData);
-		
 		ebpm.setLore(Collections.singletonList(bpLore2));
 		enderbackpackItem.setItemMeta(ebpm);
+        applyModelData(enderbackpackItem, BackpackColor.ENDER);
 		
 		// Recipes are loaded 0.5 seconds after
 	}
@@ -152,10 +156,13 @@ public class Backpacks implements Listener {
 		File f = new File(BackpacksMain.main.getDataFolder(), "recipes.yml");
 		YamlConfiguration cfg = YamlConfiguration.loadConfiguration(f);
 		if(!f.exists()) createRecipesFile(f, cfg);
-		List<String> shape = (List<String>) cfg.getList(recipeEntry + ".shape");
-		ShapedRecipe recipe = new ShapedRecipe(new NamespacedKey(BackpacksMain.main, recipeKey), result);
-		try {
-			assert shape != null;
+        var shapeList = cfg.getList(recipeEntry + ".shape");
+        ShapedRecipe recipe = new ShapedRecipe(new NamespacedKey(BackpacksMain.main, recipeKey), result);
+        try {
+            if (shapeList == null) {
+                throw new IllegalStateException("Recipe shape was null.");
+            }
+            List<String> shape = shapeList.stream().map(Object::toString).toList();
 			recipe.shape(shape.toArray(new String[0]));
 			Set<Character> entries = new HashSet<>();
 			for(String c2 : shape) {
@@ -230,11 +237,13 @@ public class Backpacks implements Listener {
 	
 	@EventHandler
 	public void onInvClose(InventoryCloseEvent e) {
+        Inventory inv = e.getInventory();
+        if (inv.getHolder() != null) return;
+
+		String[] title = getInventoryViewTitle(e.getView()).split(" - ", 2);
+        if (title.length != 2) return;
 		
-		Inventory inv = e.getInventory();
-		String[] title = e.getView().getTitle().split(" - ");
-		
-		if(inv.getHolder() == null && title[0].equals(bpTitleStart.replace(bpTitleSeparator, ""))) {
+		if(title[0].equals(bpTitleStart.replace(bpTitleSeparator, ""))) {
 			
 			int uuid;
 			uuid = Integer.parseInt(title[1]);
@@ -242,6 +251,44 @@ public class Backpacks implements Listener {
 			saveInvToFile(inv, uuid);
 		}
 	}
+
+    private String getInventoryViewTitle(Object inventoryView) {
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            return ((InventoryView) inventoryView).getTitle();
+        } else {
+            return safeGetViewTitle(inventoryView);
+        }
+    }
+
+    /**
+     * Gets InventoryView title in a way that works whether InventoryView is an interface or a class
+     * (avoids invokeinterface/invokevirtual bytecode mismatch by using reflection).
+     *
+     * @author Just1Developer
+     * @author ChatGPT
+     */
+    private static String safeGetViewTitle(Object inventoryView) {
+        try {
+            Method m = GET_TITLE_CACHE.computeIfAbsent(inventoryView.getClass(), cls -> {
+                try {
+                    Method method = cls.getMethod("getTitle");
+                    method.setAccessible(true);
+                    return method;
+                } catch (NoSuchMethodException ex) {
+                    return null;
+                }
+            });
+
+            if (m == null) return "";
+
+            Object result = m.invoke(inventoryView);
+            return (result != null) ? result.toString() : "";
+
+        } catch (Throwable t) {
+            Bukkit.getLogger().warning("Failed to get title from inventoryView, please contact the JustOneDeveloper if this issue is reproducible.");
+            return "";
+        }
+    }
 	
 	/** Every block that supersedes interaction with an item
 	 */
@@ -260,48 +307,36 @@ public class Backpacks implements Listener {
 			Material.DARK_OAK_BUTTON, Material.ACACIA_BUTTON, Material.BAMBOO_BUTTON, Material.BIRCH_BUTTON, Material.OAK_BUTTON, Material.CHERRY_BUTTON, Material.CRIMSON_BUTTON, Material.JUNGLE_BUTTON, Material.MANGROVE_BUTTON, Material.SPRUCE_BUTTON, Material.WARPED_BUTTON,
 			Material.DARK_OAK_FENCE_GATE, Material.ACACIA_FENCE_GATE, Material.BAMBOO_FENCE_GATE, Material.BIRCH_FENCE_GATE, Material.OAK_FENCE_GATE, Material.CHERRY_FENCE_GATE, Material.CRIMSON_FENCE_GATE, Material.JUNGLE_FENCE_GATE, Material.MANGROVE_FENCE_GATE, Material.SPRUCE_FENCE_GATE, Material.WARPED_FENCE_GATE,
 			Material.DARK_OAK_TRAPDOOR, Material.ACACIA_TRAPDOOR, Material.BAMBOO_TRAPDOOR, Material.BIRCH_TRAPDOOR, Material.OAK_TRAPDOOR, Material.CHERRY_TRAPDOOR, Material.CRIMSON_TRAPDOOR, Material.JUNGLE_TRAPDOOR, Material.MANGROVE_TRAPDOOR, Material.SPRUCE_TRAPDOOR, Material.WARPED_TRAPDOOR);
-	
+
 	@EventHandler
 	public void onInteract(PlayerInteractEvent e) {
-		Bukkit.broadcastMessage("1");
 		Player p = e.getPlayer();
 		if (e.getItem() == null) return;
 		ItemStack it = e.getItem();
 		
 		if (!it.hasItemMeta()) return;
-		Bukkit.broadcastMessage("2");
 		assert it.getItemMeta() != null;
 		if (!it.getItemMeta().hasDisplayName()) return;
-		Bukkit.broadcastMessage("3");
 		
 		ItemMeta m = it.getItemMeta();
 		if (m == null) return;
-		Bukkit.broadcastMessage("4");
 		if (e.getAction().equals(Action.LEFT_CLICK_AIR) || e.getAction().equals(Action.LEFT_CLICK_BLOCK)) return;
-		Bukkit.broadcastMessage("5");
 		
 		if (!m.hasLore()) return;
-		Bukkit.broadcastMessage("6");
 		if (e.getAction().equals(Action.RIGHT_CLICK_BLOCK) && !e.getPlayer().isSneaking() && Interactables.contains(Objects.requireNonNull(e.getClickedBlock()).getType())) return;
-		Bukkit.broadcastMessage("7");
 		
 		assert m.getLore() != null;
-		if(m.getLore().get(0) == null) return;
-		Bukkit.broadcastMessage("8 + " + m.getLore().get(0));
-		if(m.getLore().get(0).equals(bpLore1)) {
+		if(m.getLore().getFirst() == null) return;
+		if(m.getLore().getFirst().equals(bpLore1)) {
 			
 			if(!it.getType().equals(BackpackMat)) return;
-			Bukkit.broadcastMessage("9 + " + enableBackpacks);
 			if(!enableBackpacks) return;
-			Bukkit.broadcastMessage("10");
 			
 			int uuid = 0;
-			
-			if (!m.hasCustomModelData()) {
-				// Backwards compatability.
-				m.setCustomModelData(BackpackColor.baseColorModelData);
-				it.setItemMeta(m);
-			}
+
+            if (!hasModelData(it)) {
+                applyModelData(it, BackpackColor.DEFAULT);
+            }
 			
 			if(m.hasLore()) {
 				List<String> l = m.getLore();
@@ -311,7 +346,6 @@ public class Backpacks implements Listener {
 					} catch(NumberFormatException ignored) { }
 				}
 			}
-			Bukkit.broadcastMessage("uuid: " + uuid + " | " + m.getCustomModelData());
 			
 			if(uuid == 0) {
 				uuid = getRndUUID();
@@ -375,15 +409,13 @@ public class Backpacks implements Listener {
 			p.getInventory().setItemInMainHand(itemStack);
 			p.openInventory(GetFromFile(uuid));
 			p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 7.0F, 1.0F);
-			Bukkit.broadcastMessage("11");
 			
-		} else if(m.getLore().get(0).equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
-			
-			if (!m.hasCustomModelData()) {
-				// Backwards compatability.
-				m.setCustomModelData(BackpackColor.baseColorModelData);
-				it.setItemMeta(m);
-			}
+		} else if(m.getLore().getFirst().equals("§5Ender-Backpack") && it.getType().equals(EnderBackpackMat)) {
+
+            if (!hasModelData(it)) {
+                // Backwards compatability.
+                applyModelData(it, BackpackColor.ENDER);
+            }
 			
 			if(!enableEnderbackpacks) return;
 			
@@ -434,12 +466,13 @@ public class Backpacks implements Listener {
 		ItemStack it = e.getCurrentItem();
 		ItemStack cursor = e.getCursor();
 		Inventory inv = e.getClickedInventory();
-		
+        String title = getInventoryViewTitle(e.getView());
+
 		if(it == null && cursor == null) return;
 		
-		if(e.getView().getTitle().startsWith(bpTitleStart)) {
+		if(title.startsWith(bpTitleStart)) {
 
-			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSeparator)[1]);
+			int uuid = Integer.parseInt(title.split(bpTitleSeparator)[1]);
 			
 			if(!(inv instanceof PlayerInventory) || e.isShiftClick()) {
 				// Shift Click Context
@@ -463,10 +496,11 @@ public class Backpacks implements Listener {
 		
 		if(e.getInventory().getHolder() != null) return;
 		if(!(e.getWhoClicked() instanceof Player)) return;
+        String title = getInventoryViewTitle(e.getView());
 		
-		if(e.getView().getTitle().startsWith(bpTitleStart)) {
+		if(title.startsWith(bpTitleStart)) {
 			
-			int uuid = Integer.parseInt(e.getView().getTitle().split(bpTitleSeparator)[1]);
+			int uuid = Integer.parseInt(title.split(bpTitleSeparator)[1]);
 
 			if(!(e.getInventory() instanceof PlayerInventory)) {
 				if(isTheBackpackFromInventory(uuid, e.getOldCursor()) || isTheBackpackFromInventory(uuid, e.getCursor()) || isEitherItemBackpackAndDisallowed(e.getOldCursor(), e.getCursor())) {
@@ -486,30 +520,8 @@ public class Backpacks implements Listener {
 	
 	
 	public boolean isTheBackpackFromInventory(int BackpackID, ItemStack i) {
-		
 		if (!isBackpack(i)) return false;
 		return BackpackID != 0 && BackpackID == getIDofValidBackpack(i);
-		
-		/*
-		
-		if(i == null) return false;
-		if(!i.hasItemMeta()) return false;
-		ItemMeta m = i.getItemMeta();
-		assert m != null;
-		if(!m.hasLore()) return false;
-		List<String> l = m.getLore();
-		assert l != null;
-		if(l.isEmpty()) return false;
-		String s = l.get(0);
-		
-		if(s.equals(bpLore1) && l.size() == 2) {
-			String id = l.get(1).replaceFirst("§7", "");
-			return id.equals(BackpackID + "");
-		}
-		
-		return false;
-		
-		 */
 	}
 	
 	private static final int uuidLength = 9;
@@ -575,9 +587,7 @@ public class Backpacks implements Listener {
 		}
 		
 	}
-	
-	
-	
+
 	public Inventory GetFromFile(int UUID) {
 		
 		File f = new File(BackpacksMain.main.getDataFolder() + "/backpacks/", UUID + ".yml");
@@ -621,9 +631,86 @@ public class Backpacks implements Listener {
 		return inv;
 		
 	}
-	
-	
-	
+
+    public static void applyModelData(ItemStack itemStack, BackpackColor color) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            meta.setItemModel(new NamespacedKey(BackpacksMain.TEXTURE_PACK_NAMESPACE, color.getModelName()));
+        } else {
+            meta.setCustomModelData(color.getLegacyModelDataOffset() + BackpackCrafting.baseColorModelData);
+        }
+        itemStack.setItemMeta(meta);
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public static boolean hasModelData(ItemStack itemStack) {
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            ItemMeta meta = itemStack.getItemMeta();
+            if (meta == null) return false;
+            NamespacedKey modelKey = meta.getItemModel();
+            if (modelKey == null) return false;
+            return modelKey.getNamespace().equals(BackpacksMain.TEXTURE_PACK_NAMESPACE);
+        }
+        return hasLegacyModelData(itemStack);
+    }
+
+    private static boolean hasLegacyModelData(ItemStack itemStack) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return false;
+        try {
+            if (!meta.hasCustomModelData()) return false;
+            int data = meta.getCustomModelData();
+            return BackpackCrafting.isInBackpackCustomModelDataLegacyRange(data);
+        } catch (Exception e) {
+            // in case the method is not on the server side
+            return false;
+        }
+    }
+
+    public static BackpackColor getColorOfBackpack(ItemStack itemStack) {
+        if (!hasModelData(itemStack)) return null;
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return null;
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            NamespacedKey modelKey = meta.getItemModel();
+            if (modelKey == null) return null;
+            Optional<BackpackColor> color = BackpackColor.getByModelName(modelKey.getKey());
+            return color.orElse(null);
+        }
+        if (!meta.hasCustomModelData()) return BackpackColor.DEFAULT;
+        return BackpackColor.fromCustomModelDataInteger(meta.getCustomModelData());
+    }
+
+    @SuppressWarnings("OptionalIsPresent")
+    public static boolean isColoredBackpack(ItemStack itemStack) {
+        if (!hasModelData(itemStack)) return false;
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return false;
+        if (BackpacksMain.USE_NEW_TEXTURE_PACK_SYSTEM) {
+            NamespacedKey modelKey = meta.getItemModel();
+            if (modelKey == null) return false;
+            Optional<BackpackColor> color = BackpackColor.getByModelName(modelKey.getKey());
+            if (color.isEmpty()) return false;
+            return modelKey.getNamespace().equals(BackpacksMain.TEXTURE_PACK_NAMESPACE)
+                    && color.get().isColor();
+        }
+        return isColoredBackpackLegacy(itemStack);
+    }
+
+    private static boolean isColoredBackpackLegacy(ItemStack itemStack) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return false;
+        try {
+            if (!meta.hasCustomModelData()) return false;
+            int data = meta.getCustomModelData();
+            return BackpackCrafting.isInColoredBackpackCustomModelDataLegacyRange(data);
+        } catch (Exception e) {
+            // in case the method is not on the server side
+            return false;
+        }
+    }
+
 	public int getRndUUID() {
 		int id = rndInt((int) Math.pow(10, uuidLength - 1), (int) Math.pow(10, uuidLength));
 		while(true) {
@@ -632,16 +719,12 @@ public class Backpacks implements Listener {
 		}
 		return id;
 	}
-	
-	
-	
+
 	public int rndInt(int min, int max) {
 		Random r = new Random();
 		return r.nextInt(max - min) + min;
 	}
-	
-	
-	
+
 	public static void saveCfg(File f, FileConfiguration cfg) {
 		try {
 			cfg.save(f);
